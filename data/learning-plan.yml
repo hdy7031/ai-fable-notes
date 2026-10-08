@@ -34,3 +34,13 @@ stages:
       - {id: conditional-probability, title: 条件概率, order: 170, prerequisites: []}
       - {id: bayes-theorem, title: 贝叶斯定理, order: 180, prerequisites: [conditional-probability]}
       - {id: total-probability, title: 全概率公式, order: 190, prerequisites: [bayes-theorem]}
+  - id: probabilistic-learning
+    title: 概率模型与机器学习
+    description: 从估计未知参数，到理解模型训练的损失函数
+    concepts:
+      - {id: probabilistic-model-parameters, title: 概率模型与参数, order: 200, prerequisites: [total-probability]}
+      - {id: logarithm, title: 对数函数, order: 210, prerequisites: []}
+      - {id: likelihood-function, title: 似然函数, order: 220, prerequisites: [probabilistic-model-parameters]}
+      - {id: maximum-likelihood-estimation, title: 最大似然估计, order: 230, prerequisites: [likelihood-function, logarithm]}
+      - {id: softmax, title: Softmax, order: 240, prerequisites: [maximum-likelihood-estimation]}
+      - {id: cross-entropy-loss, title: 交叉熵损失, order: 250, prerequisites: [softmax, logarithm]}
