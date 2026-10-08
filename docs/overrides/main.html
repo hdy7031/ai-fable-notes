@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  {% if page.meta.fable_layout == "reading" and page.toc %}
+  <details class="reading-toc">
+    <summary>本篇目录</summary>
+    <nav aria-label="本篇目录"><ul>
+    {% for item in page.toc recursive %}
+      <li><a href="{{ item.url }}">{{ item.title }}</a>{% if item.children %}<ul>{{ loop(item.children) }}</ul>{% endif %}</li>
+    {% endfor %}
+    </ul></nav>
+  </details>
+  {% endif %}
+  {{ super() }}
+{% endblock %}
+{% block footer %}
+<footer class="fable-footer">
+  <div class="fable-footer__inner">
+    <div><strong>AI 寓言笔记</strong><span>在故事里理解概念，在知识之间找到联系。</span></div>
+    <nav aria-label="帮助与站点信息">
+      <a href="{{ 'guide/' | url }}">使用说明 · 进度备份</a>
+      <a href="{{ 'guide/publishing/' | url }}">发布与导入</a>
+      <a href="https://github.com/hdy7031/ai-fable-notes">GitHub ↗</a>
+    </nav>
+  </div>
+</footer>
+{% endblock %}
