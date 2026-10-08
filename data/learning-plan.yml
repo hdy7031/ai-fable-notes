@@ -1,25 +1,75 @@
 stages:
-  - id: cnn
-    title: 卷积神经网络
-    description: 从局部观察，到特征提取
+  - id: foundations
+    title: 神经网络入门
+    description: 从数字、向量和一次预测开始理解神经网络
     concepts:
-      - {id: receptive-field, title: 感受野, order: 10, prerequisites: []}
+      - {id: vectors-and-matrices, title: 向量与矩阵, order: 1, prerequisites: []}
+      - {id: matrix-multiplication, title: 矩阵乘法, order: 2, prerequisites: [vectors-and-matrices]}
+      - {id: linear-layer, title: 线性层与权重, order: 3, prerequisites: [matrix-multiplication]}
+      - {id: perceptron, title: 感知机, order: 4, prerequisites: [linear-layer]}
+      - {id: mlp, title: 多层感知机, order: 5, prerequisites: [perceptron]}
+      - {id: activation-function, title: 激活函数与非线性, order: 6, prerequisites: [mlp]}
+      - {id: forward-pass, title: 前向传播, order: 7, prerequisites: [activation-function]}
+      - {id: tensor-shape, title: 张量与形状, order: 8, prerequisites: [vectors-and-matrices]}
+  - id: cnn
+    title: 卷积神经网络与视觉
+    description: 从图像局部特征到深层视觉表征
+    concepts:
+      - {id: convolution, title: 卷积操作, order: 9, prerequisites: [tensor-shape]}
+      - {id: receptive-field, title: 感受野, order: 10, prerequisites: [convolution]}
+      - {id: stride-padding, title: 步幅与填充, order: 11, prerequisites: [convolution]}
       - {id: pooling, title: 池化, order: 20, prerequisites: [receptive-field]}
       - {id: parameters-and-flops, title: 参数量与计算量, order: 30, prerequisites: [pooling]}
-      - {id: relu, title: ReLU, order: 40, prerequisites: [parameters-and-flops]}
+      - {id: cnn-classification, title: CNN 如何完成图像分类, order: 31, prerequisites: [convolution, pooling]}
+      - {id: residual-connection, title: 残差连接与 ResNet, order: 32, prerequisites: [cnn-classification]}
+      - {id: relu, title: ReLU, order: 40, prerequisites: [activation-function]}
   - id: training
-    title: 训练机制
-    description: 理解模型怎样从错误中学习
+    title: 神经网络训练机制
+    description: 从预测误差到梯度更新，再到可靠泛化
     concepts:
-      - {id: loss, title: Loss, order: 50, prerequisites: [relu]}
+      - {id: loss, title: 损失函数 Loss, order: 50, prerequisites: [forward-pass]}
       - {id: derivative, title: 导数, order: 60, prerequisites: [loss]}
       - {id: partial-derivative-and-gradient, title: 偏导数与梯度, order: 70, prerequisites: [derivative]}
       - {id: chain-rule, title: 链式法则, order: 80, prerequisites: [partial-derivative-and-gradient]}
-      - {id: computational-graph-and-backpropagation, title: 计算图与反向传播, order: 90, prerequisites: [chain-rule]}
+      - {id: computational-graph-and-backpropagation, title: 计算图与反向传播, order: 90, prerequisites: [chain-rule, loss]}
       - {id: gradient-descent, title: 梯度下降, order: 100, prerequisites: [computational-graph-and-backpropagation]}
+      - {id: mini-batch-sgd, title: Mini-batch 与 SGD, order: 101, prerequisites: [gradient-descent]}
+      - {id: adam-optimizer, title: 动量与 Adam 优化器, order: 102, prerequisites: [mini-batch-sgd]}
+      - {id: train-val-test, title: 训练集、验证集与测试集, order: 103, prerequisites: [loss]}
+      - {id: overfitting, title: 过拟合与泛化, order: 104, prerequisites: [train-val-test]}
+      - {id: regularization, title: 正则化与 Dropout, order: 105, prerequisites: [overfitting]}
+  - id: sequence-models
+    title: 序列模型与 Transformer
+    description: 从处理顺序数据到注意力机制和视觉 Transformer
+    concepts:
+      - {id: rnn, title: 循环神经网络 RNN, order: 260, prerequisites: [mlp]}
+      - {id: lstm, title: LSTM 与长期依赖, order: 270, prerequisites: [rnn]}
+      - {id: attention, title: 注意力机制 Attention, order: 280, prerequisites: [rnn]}
+      - {id: self-attention, title: 自注意力, order: 290, prerequisites: [attention]}
+      - {id: transformer, title: Transformer 架构, order: 300, prerequisites: [self-attention]}
+      - {id: positional-encoding, title: 位置编码, order: 310, prerequisites: [transformer]}
+      - {id: vision-transformer, title: Vision Transformer, order: 320, prerequisites: [transformer, cnn-classification]}
+  - id: ocr
+    title: OCR 与多模态应用
+    description: 把神经网络知识落到文字识别与文档理解
+    concepts:
+      - {id: ocr-pipeline, title: OCR 识别流水线, order: 330, prerequisites: [cnn-classification]}
+      - {id: ctc-loss, title: CTC 与变长文字识别, order: 340, prerequisites: [ocr-pipeline, rnn]}
+      - {id: encoder-decoder, title: 编码器与解码器, order: 350, prerequisites: [transformer]}
+      - {id: document-understanding, title: 文档版面与多模态理解, order: 360, prerequisites: [ocr-pipeline, vision-transformer]}
+  - id: probabilistic-learning
+    title: 概率与机器学习目标
+    description: 用少量必要概率知识理解训练目标
+    concepts:
+      - {id: probabilistic-model-parameters, title: 概率模型与参数, order: 400, prerequisites: [total-probability]}
+      - {id: logarithm, title: 对数函数, order: 410, prerequisites: []}
+      - {id: likelihood-function, title: 似然函数, order: 420, prerequisites: [probabilistic-model-parameters]}
+      - {id: maximum-likelihood-estimation, title: 最大似然估计, order: 430, prerequisites: [likelihood-function, logarithm]}
+      - {id: softmax, title: Softmax, order: 440, prerequisites: [maximum-likelihood-estimation]}
+      - {id: cross-entropy-loss, title: 交叉熵损失, order: 450, prerequisites: [softmax, logarithm]}
   - id: statistics
-    title: 概率统计
-    description: 从随机现象，到可靠的判断
+    title: 概率统计补充
+    description: 在阅读论文和评估实验时按需学习
     concepts:
       - {id: expectation-and-variance, title: 期望与方差, order: 110, prerequisites: []}
       - {id: law-of-large-numbers, title: 大数定律, order: 120, prerequisites: [expectation-and-variance]}
@@ -28,19 +78,9 @@ stages:
       - {id: hypothesis-testing, title: 假设检验, order: 150, prerequisites: [confidence-interval]}
       - {id: statistical-power, title: 统计功效, order: 160, prerequisites: [hypothesis-testing]}
   - id: probability
-    title: 概率推理
-    description: 面对新证据，更新原有认识
+    title: 条件概率与贝叶斯补充
+    description: 理解不确定性、模型概率与证据更新
     concepts:
       - {id: conditional-probability, title: 条件概率, order: 170, prerequisites: []}
       - {id: bayes-theorem, title: 贝叶斯定理, order: 180, prerequisites: [conditional-probability]}
       - {id: total-probability, title: 全概率公式, order: 190, prerequisites: [bayes-theorem]}
-  - id: probabilistic-learning
-    title: 概率模型与机器学习
-    description: 从估计未知参数，到理解模型训练的损失函数
-    concepts:
-      - {id: probabilistic-model-parameters, title: 概率模型与参数, order: 200, prerequisites: [total-probability]}
-      - {id: logarithm, title: 对数函数, order: 210, prerequisites: []}
-      - {id: likelihood-function, title: 似然函数, order: 220, prerequisites: [probabilistic-model-parameters]}
-      - {id: maximum-likelihood-estimation, title: 最大似然估计, order: 230, prerequisites: [likelihood-function, logarithm]}
-      - {id: softmax, title: Softmax, order: 240, prerequisites: [maximum-likelihood-estimation]}
-      - {id: cross-entropy-loss, title: 交叉熵损失, order: 250, prerequisites: [softmax, logarithm]}
