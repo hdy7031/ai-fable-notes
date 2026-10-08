@@ -4,7 +4,8 @@ MkDocs + Material 中文学习站点。Markdown 是唯一正文来源，没有�
 
 - 网站：https://hdy7031.github.io/ai-fable-notes/
 - 仓库：https://github.com/hdy7031/ai-fable-notes
-- 已归档历史正文：**4 篇**，来自用户提供对话中的完整统计功效、条件概率、贝叶斯定理和全概率公式寓言。可获取记录没有逐篇生成时间，因此标为“日期不详”；其余 **15** 个已知概念待补录。
+- 已归档历史正文：**7 篇**。用户提供的粘贴文本补回感受野、池化、参数量与计算量；此前对话补回统计功效、条件概率、贝叶斯定理和全概率公式。完整生成日期未能确认，标为“日期不详”，保留原始月日标签；其余 **12** 个已知概念待补录。
+- 从视觉基础开始：https://hdy7031.github.io/ai-fable-notes/lessons/undated-receptive-field/
 
 ## 本地运行
 

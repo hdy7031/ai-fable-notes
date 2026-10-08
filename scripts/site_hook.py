@@ -8,6 +8,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from content import ROOT, load_lessons, load_plan
+from pasted_render import render_pasted
 
 LESSONS = []
 
@@ -84,7 +85,7 @@ def on_config(config):
         dates[lesson["date"] or "日期不详"].append(lesson)
     for date in sorted(dates, reverse=True):
         pages["archive"].append("## " + date)
-        pages["archive"].extend("- " + _link(x) for x in dates[date])
+        pages["archive"].extend("- " + _link(x) + (" · 原始日期标签：" + _label(x["source_date_label"]) + "（年份未注明）" if x.get("source_date_label") else "") for x in dates[date])
     if not dates:
         pages["archive"].append("暂无已发布文章。历史导出文件尚未提供，当前导入数量为 **0**。")
     for name, lines in pages.items():
@@ -111,11 +112,13 @@ def on_page_markdown(markdown, page, config, files):
     lesson = next((x for x in LESSONS if x["file"] == page.file.src_uri), None)
     if not lesson:
         return markdown
-    markdown = _render_original(markdown)
+    markdown = render_pasted(markdown) if lesson.get("body_format") == "plain-text" else _render_original(markdown)
     title = html.escape(lesson["title"])
     if not markdown.lstrip().startswith("# "):
         markdown = f"# {lesson['title']}\n\n" + markdown
     controls = f'<div class="lesson-controls" data-lesson-id="{lesson["id"]}"><span>{title} · {lesson["date"] or "日期不详"}</span><button type="button" id="toggle-completed" aria-pressed="false">标记已完成</button><p id="save-status" role="status"></p></div>\n\n'
+    if lesson.get("source_date_label"):
+        controls += f'<p class="subtle">原始日期标签：{html.escape(lesson["source_date_label"])}（年份未注明）</p>\n\n'
     by_id = {x["id"]: x for x in LESSONS}
     known = {c["id"]: c["title"] for s in load_plan()["stages"] for c in s["concepts"]}
     def relations(ids):

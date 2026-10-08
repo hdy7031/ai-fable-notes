@@ -26,6 +26,8 @@
 
 沿着[学习路径](generated/path.md)顺序阅读，也可以按[知识领域](generated/domains.md)查找，或在[日期归档](generated/archive.md)中回看某一天。
 
+从视觉基础重新拾起：[感受野](lessons/undated-receptive-field.md) → [池化](lessons/undated-pooling.md) → [参数量与计算量](lessons/undated-parameters-and-flops.md)。新归档文章默认为未完成，按实际阅读手动标记即可。
+
 历史正文以实际导出记录为准。还没有导入的概念会保留在[待补录清单](generated/missing.md)中，不计入已收录章节，也不填充虚构内容。
 
 !!! info "进度属于当前浏览器"

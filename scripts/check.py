@@ -12,6 +12,17 @@ from content import ROOT, compose, load_lessons, load_plan, privacy_check, publi
 
 
 class ContentChecks(unittest.TestCase):
+    def test_pasted_display_preserves_math_and_restores_tables(self):
+        from pasted_render import render_pasted
+        source = "今日寓言：测试\n故事第一句。\n故事第二句。\n一、公式\n\\[\nx^2+1\n\\]\n寓言\t概念\n哨兵\t感受野\n原图\n ↓\nConv 1\n下一步知识网络\n结束。"
+        rendered = render_pasted(source)
+        self.assertIn("# 今日寓言：测试", rendered)
+        self.assertIn("## 一、公式", rendered)
+        self.assertIn("故事第一句。\n\n故事第二句。", rendered)
+        self.assertIn("\\[\nx^2+1\n\\]", rendered)
+        self.assertIn("| 哨兵 | 感受野 |", rendered)
+        self.assertIn("```text\n原图\n ↓\nConv 1\n```", rendered)
+
     def test_repository_contract(self):
         lessons = load_lessons()
         plan = load_plan()
