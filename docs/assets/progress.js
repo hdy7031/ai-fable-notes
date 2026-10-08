@@ -121,14 +121,60 @@
     document.addEventListener("visibilitychange", () => { if (document.hidden) saveScroll(); });
   }
   const isCompleted = item => !!state.lessons[item.id]?.completed;
+  const readingState = courseId => state.lessons[courseId]?.completed ? "completed"
+    : state.lessons[courseId] || state.lastRead?.id === courseId ? "reading" : "unread";
   function renderCourseStates() {
     document.querySelectorAll("[data-course-id], [data-library-id]").forEach(row => {
       const courseId = row.dataset.courseId || row.dataset.libraryId;
       const completed = !!state.lessons[courseId]?.completed;
       const opened = !!state.lessons[courseId] || state.lastRead?.id === courseId;
       const status = row.querySelector("[data-course-status], [data-library-status]");
-      if (status) status.textContent = completed ? "已完成" : opened ? "阅读中" : row.dataset.courseId ? "已发布 · 未学习" : "未学习";
+      if (status) {
+        status.hidden = false;
+        status.textContent = completed ? "已完成" : opened ? "阅读中" : row.dataset.courseId ? "已发布 · 未学习" : "未读";
+      }
+      row.dataset.readingState = readingState(courseId);
     });
+    renderLibrary();
+  }
+  const library = document.getElementById("article-library");
+  const libraryRows = library ? [...library.querySelectorAll("[data-library-id]")] : [];
+  const query = document.getElementById("library-query");
+  const domain = document.getElementById("library-domain");
+  const statusFilter = document.getElementById("library-state");
+  const sort = document.getElementById("library-sort");
+  const normalize = value => value.normalize("NFKC").toLocaleLowerCase().trim();
+  function renderLibrary() {
+    if (!library) return;
+    const terms = normalize(query.value).split(/\s+/).filter(Boolean);
+    let visible = 0;
+    for (const row of libraryRows) {
+      const status = readingState(row.dataset.libraryId);
+      const match = (!domain.value || row.dataset.domain === domain.value)
+        && (!statusFilter.value || (statusFilter.value === "unfinished" ? status !== "completed" : status === statusFilter.value))
+        && terms.every(term => normalize(row.dataset.search).includes(term));
+      row.hidden = !match;
+      if (match) visible++;
+      row.querySelectorAll(".library-date").forEach(date => { date.hidden = sort.value !== "recent"; });
+    }
+    const rank = row => Number(row.dataset.rank);
+    const timestamp = row => Date.parse(row.dataset.added) || 0;
+    const ordered = [...libraryRows].sort((a, b) => (sort.value === "recent" ? timestamp(b) - timestamp(a) : 0) || rank(a) - rank(b));
+    // Move existing native links; filtering never rewrites article URLs or progress.
+    const list = library.querySelector(".library-list");
+    ordered.forEach(row => list.append(row));
+    document.getElementById("library-count").textContent = `${visible} 篇符合条件 · 共 ${libraryRows.length} 篇已发布`;
+    document.getElementById("library-empty").hidden = visible !== 0;
+    document.getElementById("library-date-note").hidden = sort.value !== "recent";
+  }
+  if (library) {
+    const params = new URLSearchParams(location.search);
+    if ([...domain.options].some(option => option.value === params.get("domain"))) domain.value = params.get("domain");
+    if (params.get("sort") === "recent") sort.value = "recent";
+    library.querySelector("form").addEventListener("submit", event => event.preventDefault());
+    query.addEventListener("input", renderLibrary);
+    [domain, statusFilter, sort].forEach(control => control.addEventListener("change", renderLibrary));
+    library.querySelector(".library-filters").hidden = false;
   }
   function catalogUnavailable() {
     const status = document.getElementById("reading-status");

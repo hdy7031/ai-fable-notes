@@ -31,18 +31,19 @@ class NavigationChecks(unittest.TestCase):
         self.assertEqual({lesson['id']: lesson['order'] for lesson in displayed},
                          {lesson['id']: lesson['order'] for lesson in lessons})
 
-    def test_chapters_and_reader_share_the_sequence_including_gaps(self):
+    def test_library_shows_only_published_but_reader_preserves_gaps(self):
         import re
         import site_hook
         lessons, plan = load_lessons(), load_plan()
         tracks = course_tracks(plan, lessons)
         display_plan = dict(plan, stages=ordered_stages(plan))
         with patch.multiple(site_hook, LESSONS=navigation_lessons(plan, lessons), PLAN=display_plan, NAVIGATION=tracks):
-            chapters = site_hook._chapters()
-            urls = re.findall(r'class="article-row(?: missing-link)?"(?: data-library-id="[^"]+")? href="../../([^"]+)"', chapters)
-            self.assertEqual(urls, [course['url'] for courses in tracks.values() for course in courses])
-            self.assertIn('概率与统计 · 独立支线', chapters)
-            self.assertIn('待发布', chapters)
+            library = site_hook._library()
+            urls = re.findall(r'href="../../([^"]+)"', library)
+            self.assertEqual(urls, [lesson['url'] for lesson in navigation_lessons(plan, lessons)])
+            self.assertNotIn('日期不详', library)
+            self.assertNotIn('待发布', library)
+            self.assertNotIn('collection-tabs', library)
             lesson = next(item for item in lessons if item['id'] == 'partial-derivative-and-gradient')
             page = SimpleNamespace(file=SimpleNamespace(src_uri=lesson['file']), meta={})
             rendered = site_hook.on_page_markdown('# 测试正文', page, {}, [])
@@ -53,6 +54,38 @@ class NavigationChecks(unittest.TestCase):
             self.assertNotIn('statistical-power', neighbors)
             self.assertNotIn('conditional-probability', neighbors)
             self.assertTrue(course_neighbors(tracks, 'relu')[1]['id'] == 'rnn')
+
+    def test_library_updates_from_markdown_and_keeps_legacy_entries(self):
+        import site_hook
+        from library_dates import library_dates, load_entry_index
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(ROOT / 'data', root / 'data')
+            shutil.copytree(ROOT / 'docs/lessons', root / 'docs/lessons')
+            candidate = root / 'candidate.md'
+            candidate.write_text(compose(dict(id='chain-rule', title='新发布课程', date='2026-10-09',
+                category='training', order=80, prerequisites=['partial-derivative-and-gradient'],
+                next_concepts=[]), '完整测试正文。'), encoding='utf-8')
+            publish(candidate, root)
+            lessons = load_lessons(root)
+            dates = library_dates(lessons, root)
+            self.assertEqual(dates['chain-rule']['label'], '发布')
+            self.assertEqual(dates['vectors-and-matrices']['label'], '入库')
+            self.assertIsNone(next(x for x in lessons if x['id'] == 'vectors-and-matrices')['date'])
+            unknown = dict(lessons[-1], id='unknown-date', date=None)
+            self.assertNotIn('unknown-date', library_dates([unknown], root))
+            self.assertEqual(len(load_entry_index(root)), len(load_lessons()))
+            with patch.multiple(site_hook, ROOT=root, load_lessons=lambda: lessons,
+                    load_plan=lambda: load_plan(root), library_dates=lambda items: library_dates(items, root)):
+                config = site_hook.on_config({})
+            library = (root / 'docs/generated/library.md').read_text(encoding='utf-8')
+            self.assertIn('data-library-id="chain-rule"', library)
+            self.assertEqual(library.count('data-library-id='), len(lessons))
+            for name in ('domains', 'chapters', 'archive'):
+                legacy = (root / f'docs/generated/{name}.md').read_text(encoding='utf-8')
+                self.assertIn('href="../library/"', legacy)
+                self.assertNotIn('data-library-id=', legacy)
+                self.assertNotIn(f'generated/{name}.md', str(config['nav']))
 
     def test_recommendations(self):
         node = shutil.which('node')

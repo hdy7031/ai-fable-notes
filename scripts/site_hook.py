@@ -1,7 +1,5 @@
 """Build the learning surfaces from the Markdown contract; never edit lesson bodies."""
-from collections import defaultdict
 import html
-from itertools import groupby
 import json
 import re
 from pathlib import Path
@@ -11,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from content import ROOT, load_lessons, load_plan
 from curriculum import MAIN_STAGES, MAIN_DESCRIPTION, ordered_stages, navigation_lessons, course_tracks, course_neighbors
 from pasted_render import render_pasted
+from library_dates import library_dates
 
 LESSONS = []
 PLAN = {}
@@ -136,7 +135,7 @@ def _home_dashboard():
 <div class="progress-summary__track"><progress id="overall-progress" value="0" max="100" aria-label="整体阅读进度"></progress><p id="reading-status">每完成一篇，知识就连起一小段。</p></div>
 </section>
 <section aria-labelledby="stages-title"><div class="section-heading"><h2 id="stages-title">知识阶段</h2><a href="generated/path/">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">主线：{MAIN_DESCRIPTION}。概率与统计为独立支线。</p>{_stage_cards()}</section>
-<section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/archive/">日期归档 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
+<section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
 </div>'''
 
 
@@ -144,32 +143,38 @@ def _page(title, description, body):
     return f'---\ntitle: {title}\nhide:\n  - navigation\n  - toc\n---\n<div class="collection-page">\n<p class="eyebrow">AI FABLE NOTES / {title}</p><h1>{title}</h1><p class="collection-intro">{description}</p>\n{body}\n</div>\n'
 
 
-def _library_nav(active):
-    links = [('library', '精选分类'), ('domains', '知识领域'), ('chapters', '全部章节'), ('archive', '日期归档')]
-    return '<nav class="collection-tabs" aria-label="文章浏览方式">' + ''.join(f'<a {"aria-current=page" if key == active else ""} href="../{key}/">{label}</a>' for key, label in links) + '</nav>'
-
-
-def _article_rows(lessons, depth=2, wrap=True):
-    rows = ''.join(f'<a class="article-row" data-library-id="{x["id"]}" href="{"../" * depth}{x["url"]}"><span><strong>{html.escape(_concept_title(x))}</strong><span>{html.escape(x["title"])}</span></span><span class="article-date">{x["date"] or "日期不详"}<span data-library-status>未学习</span></span><span aria-hidden="true">↗</span></a>' for x in lessons)
-    return '<div class="article-list">' + rows + '</div>' if wrap else rows
-
-
-def _chapters():
-    sections = []
+def _library():
+    dates = library_dates(LESSONS)
     titles = {stage['id']: stage['title'] for stage in PLAN['stages']}
-    for track, label in (('main', '主线课程'), ('probability-statistics', '概率与统计 · 独立支线')):
-        sections.append(f'<h2>{label}</h2>')
-        for index, (category, group) in enumerate(groupby(NAVIGATION[track], key=lambda course: course['category']), 1):
-            courses = list(group)
-            rows = []
-            for course in courses:
-                lesson = next((item for item in LESSONS if item['id'] == course['id']), None)
-                if lesson:
-                    rows.append(_article_rows([lesson], wrap=False))
-                else:
-                    rows.append(f'<a class="article-row missing-link" href="../../{course["url"]}"><span><strong>{html.escape(course["title"])}</strong><span>正文尚未发布 · 查看阶段计划</span></span><span class="article-date">待发布</span><span aria-hidden="true">↗</span></a>')
-            sections.append(f'<section class="library-section chapter-section"><div class="section-heading"><h3><span class="domain-number">{index:02d}</span>{html.escape(titles[category])}</h3><span>{sum(course["published"] for course in courses)} 篇已发布</span></div><div class="article-list">{"".join(rows)}</div></section>')
-    return ''.join(sections)
+    numbers = {course['id']: index for index, course in enumerate(
+        [course for track in NAVIGATION.values() for course in track], 1)}
+    options = ''.join(f'<option value="{s["id"]}">{html.escape(s["title"])}</option>' for s in PLAN['stages'])
+    rows = []
+    for index, lesson in enumerate(LESSONS):
+        concept = _concept_title(lesson)
+        domain = titles[lesson['category']]
+        keywords = ' '.join(str(lesson.get(key, '')) for key in ('keywords', 'tags'))
+        search = html.escape(' '.join((concept, lesson['title'], domain, lesson['category'], lesson['id'], keywords)), quote=True)
+        date = dates.get(lesson['id'])
+        timestamp = date['timestamp'] if date else ''
+        date_html = f'<span class="library-date" hidden>{date["label"]} <time datetime="{timestamp}">{date["day"]}</time></span>' if date else ''
+        rows.append(f'''<a class="library-row" data-library-id="{lesson['id']}" data-domain="{lesson['category']}" data-search="{search}" data-rank="{index}" data-added="{timestamp}" href="../../{lesson['url']}">
+<span class="library-order" aria-label="第 {numbers[lesson['id']]} 课">#{numbers[lesson['id']]:02d}</span>
+<span class="library-copy"><strong>{html.escape(concept)}</strong><span class="library-story">{html.escape(lesson['title'])}</span><span class="library-meta">{html.escape(domain)}{date_html}</span></span>
+<span class="library-status" data-library-status hidden>未读</span><span class="library-arrow" aria-hidden="true">↗</span></a>''')
+    return f'''<section id="article-library" aria-label="已发布文章索引">
+<form class="library-filters" hidden role="search" aria-label="筛选文章">
+<label class="library-search">查找文章<input id="library-query" type="search" placeholder="概念、寓言标题或关键词" autocomplete="off"></label>
+<label>知识领域<select id="library-domain"><option value="">全部领域</option>{options}</select></label>
+<label>阅读状态<select id="library-state"><option value="">全部文章</option><option value="unfinished">未读 / 阅读中</option><option value="unread">未读</option><option value="reading">阅读中</option><option value="completed">已完成</option></select></label>
+<label>排序<select id="library-sort"><option value="course">课程顺序</option><option value="recent">最近入库</option></select></label>
+</form>
+<p class="library-summary" id="library-count" role="status" aria-live="polite">{len(LESSONS)} 篇已发布文章</p>
+<p class="subtle" id="library-date-note" hidden>历史文章按首次入库时间排序；新文章使用真实发布日期。未知时间排在最后。</p>
+<noscript><p class="subtle">下方为全部已发布文章；启用 JavaScript 后可筛选、排序并查看本地阅读状态。</p></noscript>
+<div class="library-list">{''.join(rows)}</div>
+<p class="subtle" id="library-empty" hidden>没有符合条件的文章，试试其他关键词或清除筛选。</p>
+</section>'''
 
 
 def _course_rows(stage):
@@ -199,20 +204,9 @@ def on_config(config):
     gap_links = '、'.join(_concept_link(i, 2) for i in sorted(gaps, key=lambda i: known[i]['order'])) or '目前已发布课程的前置正文已齐全。'
     route = f'<div class="route-summary"><strong>{len(LESSONS)} 篇已发布</strong><span>{len(known)} 个计划概念</span><span>完成状态随阅读同步</span></div>{_stage_cards("../../")}<section id="prerequisite-gaps" class="gap-note"><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
     pages = {'path': _page('学习路线', f'主线：{MAIN_DESCRIPTION}。概率与统计作为独立支线，按需学习。', route)}
-    pages['library'] = _page('文章库', f'{len(LESSONS)} 篇寓言，连接故事与 AI 概念。按主题探索，或回看某一天的发布。', _library_nav('library') + ''.join(f'<section class="library-section"><div class="section-heading"><h2>{html.escape(s["title"])}</h2><a href="../stages/{s["id"]}/">阶段路线 →</a></div>{_article_rows([x for x in LESSONS if x["category"] == s["id"]])}</section>' for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)))
-    domain_sections = []
-    for stage in PLAN['stages']:
-        actual = [x for x in LESSONS if x['category'] == stage['id']]
-        contents = _article_rows(actual) if actual else f'<p class="subtle">正文尚未发布。<a href="../stages/{stage["id"]}/">查看阶段计划 →</a></p>'
-        domain_sections.append(f'<section id="domain-{stage["id"]}" class="library-section"><h2>{html.escape(stage["title"])}</h2>{contents}</section>')
-    domain_links = '<nav class="anchor-links" aria-label="知识领域跳转">' + ''.join(f'<a href="#domain-{s["id"]}">{html.escape(s["title"])}</a>' for s in PLAN['stages']) + '</nav>'
-    pages['domains'] = _page('知识领域', '按概念所属的知识领域查找正文。', _library_nav('domains') + domain_links + ''.join(domain_sections))
-    pages['chapters'] = _page('全部章节', f'主线：{MAIN_DESCRIPTION}。概率与统计单列为独立支线；待发布课程仅链接阶段计划。', _library_nav('chapters') + _chapters())
-    dates = defaultdict(list)
-    for lesson in LESSONS:
-        dates[lesson['date'] or '日期不详'].append(lesson)
-    date_keys = sorted((d for d in dates if d != '日期不详'), reverse=True) + (['日期不详'] if '日期不详' in dates else [])
-    pages['archive'] = _page('日期归档', '保留真实发布日期；日期不详的历史正文单独归档。原始月日标签可在文章页查看。', _library_nav('archive') + '<nav class="anchor-links" aria-label="日期跳转">' + ''.join(f'<a href="#date-{d}">{d}</a>' for d in date_keys) + '</nav>' + ''.join(f'<section id="date-{d}" class="library-section"><h2>{d}</h2>{_article_rows(dates[d])}</section>' for d in date_keys))
+    pages['library'] = _page('文章库', '查找概念、重温故事、按需阅读。', _library())
+    for name, title in (('domains', '知识领域'), ('chapters', '全部章节'), ('archive', '日期归档')):
+        pages[name] = _page(title, '文章浏览已合并到统一文章库，可搜索、筛选阅读状态与领域，并切换排序。', '<a class="fable-primary" href="../library/">前往文章库 →</a>').replace('hide:\n', 'search:\n  exclude: true\nhide:\n', 1)
     pages['missing'] = _page('待补录清单', '前置缺口优先补录，其他概念保留在未来计划中。缺少正文时，只展示课程信息。', '<a class="back-link" href="../path/">← 返回学习路线</a>' + ''.join(f'<section class="library-section"><h2>{html.escape(s["title"])}</h2><ul>' + ''.join(f'<li>{_concept_link(c["id"], 2)} · {"必要前置缺口" if c["id"] in gaps else "未来计划"}</li>' for c in s['concepts'] if not any(x['id'] == c['id'] for x in LESSONS)) + '</ul></section>' for s in PLAN['stages'] if any(not any(x['id'] == c['id'] for x in LESSONS) for c in s['concepts'])))
     for name, text in pages.items():
         _write_if_changed(generated / f'{name}.md', text)
@@ -223,7 +217,7 @@ def on_config(config):
     config['nav'] = [
         {'首页': 'index.md'},
         {'学习路线': ['generated/path.md'] + [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages']] + [{'待补录清单': 'generated/missing.md'}]},
-        {'文章库': ['generated/library.md', {'知识领域': 'generated/domains.md'}, {'全部章节': 'generated/chapters.md'}, {'日期归档': 'generated/archive.md'}] + [{s['title']: [{_concept_title(x): x['file']} for x in LESSONS if x['category'] == s['id']]} for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)]},
+        {'文章库': ['generated/library.md'] + [{s['title']: [{_concept_title(x): x['file']} for x in LESSONS if x['category'] == s['id']]} for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)]},
     ]
     return config
 

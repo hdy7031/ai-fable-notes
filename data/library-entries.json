@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "entries": {
+    "vectors-and-matrices": {
+      "file": "lessons/undated-vectors-and-matrices.md",
+      "commit": "2a697444cf680af28cf083348c8bb5f052b503c2",
+      "added_at": "2026-10-08T18:32:46+08:00"
+    },
+    "matrix-multiplication": {
+      "file": "lessons/undated-matrix-multiplication.md",
+      "commit": "9db5ea2dcbb38cc17572c602d81339fbfee5b1fa",
+      "added_at": "2026-10-08T18:32:49+08:00"
+    },
+    "linear-layer": {
+      "file": "lessons/undated-linear-layer.md",
+      "commit": "ef880e0a0cc7373b1f65d513406beb8d31dddc53",
+      "added_at": "2026-10-08T18:32:51+08:00"
+    },
+    "perceptron": {
+      "file": "lessons/undated-perceptron.md",
+      "commit": "9864c79da8f1f6eece66dd4d8a8b64eb439cb8f1",
+      "added_at": "2026-10-08T18:32:54+08:00"
+    },
+    "mlp": {
+      "file": "lessons/undated-mlp.md",
+      "commit": "cc9b81c0ef7852ec3224513d6fe4c0eda4e256e3",
+      "added_at": "2026-10-08T18:34:16+08:00"
+    },
+    "activation-function": {
+      "file": "lessons/undated-activation-function.md",
+      "commit": "bed353f168605aeda9ddfb16e04769fb34f9783f",
+      "added_at": "2026-10-08T18:34:19+08:00"
+    },
+    "forward-pass": {
+      "file": "lessons/undated-forward-pass.md",
+      "commit": "aca2d05c9f5a0d7bf0ce4a7265fadd7daa58bb38",
+      "added_at": "2026-10-08T18:34:22+08:00"
+    },
+    "tensor-shape": {
+      "file": "lessons/2026-10-08-tensor-shape.md",
+      "commit": "024c6935cf9e12f41bfef7a5c923421663855b3b",
+      "added_at": "2026-10-08T20:03:15+08:00"
+    },
+    "convolution": {
+      "file": "lessons/2026-10-08-convolution.md",
+      "commit": "72d5c6fafb489945ca2c72bc788da0a4daebe95d",
+      "added_at": "2026-10-08T20:03:17+08:00"
+    },
+    "receptive-field": {
+      "file": "lessons/undated-receptive-field.md",
+      "commit": "dd30d1a02a041e93b0535a2698018ae48064facb",
+      "added_at": "2026-10-08T17:56:10+08:00"
+    },
+    "stride-padding": {
+      "file": "lessons/2026-10-08-stride-padding.md",
+      "commit": "f561d39890f4ebd85f4aa243917d6b5d2472d49d",
+      "added_at": "2026-10-08T20:04:56+08:00"
+    },
+    "pooling": {
+      "file": "lessons/undated-pooling.md",
+      "commit": "dd30d1a02a041e93b0535a2698018ae48064facb",
+      "added_at": "2026-10-08T17:56:10+08:00"
+    },
+    "parameters-and-flops": {
+      "file": "lessons/undated-parameters-and-flops.md",
+      "commit": "dd30d1a02a041e93b0535a2698018ae48064facb",
+      "added_at": "2026-10-08T17:56:10+08:00"
+    },
+    "relu": {
+      "file": "lessons/2026-10-08-relu.md",
+      "commit": "be3b96557a878da01cfea57f2de2908fd7ad1425",
+      "added_at": "2026-10-08T20:04:59+08:00"
+    },
+    "loss": {
+      "file": "lessons/undated-loss.md",
+      "commit": "7fa198b78f0684d3efa3e38b6fa13bfe8a0b5cf8",
+      "added_at": "2026-10-08T18:34:24+08:00"
+    },
+    "derivative": {
+      "file": "lessons/undated-derivative.md",
+      "commit": "3a8ddcd0476d19900d85562620e35e418ea8f686",
+      "added_at": "2026-10-08T18:36:24+08:00"
+    },
+    "partial-derivative-and-gradient": {
+      "file": "lessons/undated-partial-derivative-and-gradient.md",
+      "commit": "2fbda22c08d3d078d810cb0249621ff617efe3d3",
+      "added_at": "2026-10-08T18:36:27+08:00"
+    },
+    "statistical-power": {
+      "file": "lessons/undated-statistical-power.md",
+      "commit": "a66751cf40b668554088efd3792c416b45f6eee3",
+      "added_at": "2026-10-08T17:27:51+08:00"
+    },
+    "conditional-probability": {
+      "file": "lessons/undated-conditional-probability.md",
+      "commit": "a66751cf40b668554088efd3792c416b45f6eee3",
+      "added_at": "2026-10-08T17:27:51+08:00"
+    },
+    "bayes-theorem": {
+      "file": "lessons/undated-bayes-theorem.md",
+      "commit": "a66751cf40b668554088efd3792c416b45f6eee3",
+      "added_at": "2026-10-08T17:27:51+08:00"
+    },
+    "total-probability": {
+      "file": "lessons/undated-total-probability.md",
+      "commit": "a66751cf40b668554088efd3792c416b45f6eee3",
+      "added_at": "2026-10-08T17:27:51+08:00"
+    }
+  }
+}
