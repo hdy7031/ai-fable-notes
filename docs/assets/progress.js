@@ -1,5 +1,36 @@
 (() => {
   "use strict";
+  function recommendation(navigation, state) {
+    const completed = item => !!state.lessons[item.id]?.completed;
+    const all = Object.values(navigation).flat();
+    const recent = all.find(item => item.id === state.lastRead?.id && item.published);
+    const track = recent ? Object.keys(navigation).find(key => navigation[key].includes(recent)) : "main";
+    const courses = navigation[track] || [];
+    if (recent && !completed(recent)) return { item: recent, kind: "resume", track };
+    const remaining = courses.filter(item => !completed(item));
+    if (!remaining.length) return { item: recent || courses[0], kind: "complete", track };
+    const recentIndex = recent ? courses.indexOf(recent) : -1;
+    const candidate = courses.slice(recentIndex + 1).find(item => !completed(item)) || remaining[0];
+    const byId = new Map(all.map(item => [item.id, item]));
+    function resolve(item, visited = new Set()) {
+      if (!item.published) return { item, kind: "pending", track };
+      if (visited.has(item.id)) return { item, kind: "blocked", track };
+      const path = new Set(visited).add(item.id);
+      const prerequisites = item.prerequisites.filter(id => !state.lessons[id]?.completed).map(id => {
+        const prerequisite = byId.get(id);
+        return prerequisite ? resolve(prerequisite, path) : { item, kind: "blocked", track };
+      });
+      // A missing required body takes precedence; never substitute an unrelated course.
+      return prerequisites.find(result => result.kind === "pending" || result.kind === "blocked")
+        || prerequisites[0] || { item, kind: "next", track };
+    }
+    return resolve(candidate);
+  }
+  // Exercise the same production recommendation function without a browser or storage writes.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { recommendation };
+    return;
+  }
   const KEY = "ai-fable-notes.progress.v1";
   const scriptUrl = document.currentScript.src;
   const siteBase = new URL("../", scriptUrl);
@@ -99,39 +130,6 @@
       if (status) status.textContent = completed ? "已完成" : opened ? "阅读中" : row.dataset.courseId ? "已发布 · 未学习" : "未学习";
     });
   }
-  function recommendation(lessons) {
-    const recent = lessons.find(item => item.id === state.lastRead?.id);
-    if (recent && !isCompleted(recent)) return { item: recent, kind: "resume" };
-    const remaining = lessons.filter(item => !isCompleted(item));
-    const byId = new Map(lessons.map(item => [item.id, item]));
-    if (!remaining.length) return { item: recent || lessons[0], kind: "review" };
-    // Continue beyond the completed recent lesson before considering earlier imports.
-    const recentIndex = recent ? lessons.indexOf(recent) : -1;
-    const candidate = lessons.slice(recentIndex + 1).find(item => !isCompleted(item)) || remaining[0];
-    function resolvePrerequisite(item, visited = new Set()) {
-      if (visited.has(item.id)) return null;
-      visited.add(item.id);
-      let ready = true;
-      for (const prerequisiteId of item.prerequisites) {
-        const prerequisite = byId.get(prerequisiteId);
-        if (!prerequisite) { ready = false; continue; }
-        // Explicit completion is authoritative; do not revisit its ancestors.
-        if (isCompleted(prerequisite)) continue;
-        ready = false;
-        const next = resolvePrerequisite(prerequisite, visited);
-        if (next) return next;
-      }
-      return ready ? item : null;
-    }
-    const next = resolvePrerequisite(candidate);
-    if (next) return { item: next, kind: "next" };
-    for (const item of remaining) {
-      if (item === candidate) continue;
-      const alternative = resolvePrerequisite(item);
-      if (alternative) return { item: alternative, kind: "next" };
-    }
-    return { item: candidate, kind: "blocked" };
-  }
   function catalogUnavailable() {
     const status = document.getElementById("reading-status");
     if (status) {
@@ -143,11 +141,11 @@
     renderCourseStates();
     if (!document.getElementById("learning-dashboard") && !document.querySelector("[data-stage-id]")) return;
     const catalog = await catalogPromise;
-    if (!catalog || !Array.isArray(catalog.lessons) || !Array.isArray(catalog.stages)) {
+    if (!catalog || !Array.isArray(catalog.lessons) || !Array.isArray(catalog.stages) || !Array.isArray(catalog.navigation?.main)) {
       catalogUnavailable();
       return;
     }
-    const lessons = [...catalog.lessons].sort((a, b) => a.order - b.order);
+    const lessons = catalog.lessons;
     document.querySelectorAll("[data-stage-id]").forEach(card => {
       const stageLessons = lessons.filter(item => item.category === card.dataset.stageId);
       if (!stageLessons.length) return;
@@ -165,7 +163,7 @@
     document.getElementById("progress-percent").textContent = percent + "%";
     document.getElementById("overall-progress").value = percent;
     document.getElementById("reading-status").textContent = completed ? `已连起 ${completed} 篇知识，按自己的节奏继续。` : "每完成一篇，知识就连起一小段。";
-    const { item, kind } = recommendation(lessons);
+    const { item, kind, track } = recommendation(catalog.navigation, state);
     const continueLink = document.getElementById("continue-reading");
     if (!item) {
       document.getElementById("continue-title").textContent = "教材正在生长";
@@ -178,14 +176,15 @@
     const concepts = new Map(catalog.stages.flatMap(stage => stage.concepts.map(concept => [concept.id, { ...concept, stage: stage.id }])));
     const title = concepts.get(item.id)?.title || item.title;
     const reason = document.getElementById("continue-reason");
-    reason.textContent = kind === "resume" ? "回到上次未读完的课程" : kind === "blocked" ? "等待前置知识补录" : kind === "review" ? "已完成全部已发布课程，随时回顾" : completed ? "沿着知识依赖，继续下一课" : "从主线起点开始";
+    const trackLabel = track === "main" ? "主线" : "概率与统计支线";
+    reason.textContent = kind === "resume" ? "回到上次未读完的课程" : kind === "pending" ? `${trackLabel}课程待发布` : kind === "blocked" ? "等待必要的前置知识" : kind === "complete" ? `${trackLabel}课程已完成，随时回顾` : completed ? `沿着${trackLabel}，继续下一课` : "从主线起点开始";
     const stageLink = document.getElementById("continue-stage");
     stageLink.textContent = stage?.title || "学习路线";
     stageLink.href = new URL(`generated/stages/${item.category}/`, siteBase).href;
-    document.getElementById("continue-title").textContent = kind === "blocked" ? "先补齐必要的前置知识" : title;
-    document.getElementById("continue-story").textContent = kind === "blocked" ? "剩余课程所需的前置正文尚未发布，可在学习路线查看缺口与未来计划。" : item.title;
+    document.getElementById("continue-title").textContent = kind === "blocked" ? "先补齐必要的前置知识" : title + (kind === "pending" ? "（待发布）" : "");
+    document.getElementById("continue-story").textContent = kind === "blocked" ? "课程所需的前置知识暂不可用，可在学习路线查看计划。" : kind === "pending" ? "这篇课程正文尚未发布，先在阶段计划查看学习位置与前置知识。" : item.story;
     continueLink.href = new URL(kind === "blocked" ? "generated/path/#prerequisite-gaps" : item.url, siteBase).href;
-    continueLink.textContent = kind === "resume" ? "继续阅读 →" : kind === "blocked" ? "查看学习路线 →" : kind === "review" ? "回顾这一篇 →" : completed ? "阅读下一课 →" : "开始阅读 →";
+    continueLink.textContent = kind === "resume" ? "继续阅读 →" : kind === "pending" ? "查看待发布课程 →" : kind === "blocked" ? "查看学习路线 →" : kind === "complete" ? "回顾这一篇 →" : completed ? "阅读下一课 →" : "开始阅读 →";
     const prerequisites = document.getElementById("continue-prerequisites");
     prerequisites.replaceChildren(document.createTextNode("前置知识："));
     if (!item.prerequisites.length) prerequisites.append(document.createTextNode("无需前置，从这里开始。"));
@@ -194,7 +193,7 @@
       const prerequisite = lessons.find(lesson => lesson.id === id);
       const concept = concepts.get(id);
       const link = document.createElement("a");
-      link.textContent = (concept?.title || prerequisite?.title || id) + (prerequisite ? isCompleted(prerequisite) ? "（已完成）" : "" : "（待补录）");
+      link.textContent = (concept?.title || prerequisite?.title || id) + (prerequisite ? isCompleted(prerequisite) ? "（已完成）" : "" : "（待发布）");
       link.href = new URL(prerequisite ? prerequisite.url : `generated/stages/${concept?.stage || item.category}/#concept-${id}`, siteBase).href;
       prerequisites.append(link);
     });

@@ -1,5 +1,6 @@
 """Small content/import/idempotency checks; no model calls or browser dependencies."""
 from pathlib import Path
+import copy
 import hashlib
 import json
 import shutil
@@ -7,8 +8,61 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from content import ROOT, compose, load_lessons, load_plan, privacy_check, publish
+from curriculum import MAIN_STAGES, ordered_stages, navigation_lessons, course_tracks, course_neighbors
+
+
+class NavigationChecks(unittest.TestCase):
+    def test_navigation_order_preserves_metadata(self):
+        lessons, plan = load_lessons(), load_plan()
+        original = copy.deepcopy((lessons, plan))
+        tracks = course_tracks(plan, lessons)
+        categories = list(dict.fromkeys(course['category'] for course in tracks['main']))
+        self.assertEqual(categories, list(MAIN_STAGES))
+        displayed = navigation_lessons(plan, lessons)
+        self.assertEqual([lesson['id'] for lesson in displayed],
+                         [course['id'] for courses in tracks.values() for course in courses if course['published']])
+        previous, following = course_neighbors(tracks, 'tensor-shape')
+        self.assertEqual(following['id'], 'loss')
+        self.assertEqual((lessons, plan), original)
+        self.assertEqual({lesson['id']: lesson['order'] for lesson in displayed},
+                         {lesson['id']: lesson['order'] for lesson in lessons})
+
+    def test_chapters_and_reader_share_the_sequence_including_gaps(self):
+        import re
+        import site_hook
+        lessons, plan = load_lessons(), load_plan()
+        tracks = course_tracks(plan, lessons)
+        display_plan = dict(plan, stages=ordered_stages(plan))
+        with patch.multiple(site_hook, LESSONS=navigation_lessons(plan, lessons), PLAN=display_plan, NAVIGATION=tracks):
+            chapters = site_hook._chapters()
+            urls = re.findall(r'class="article-row(?: missing-link)?"(?: data-library-id="[^"]+")? href="../../([^"]+)"', chapters)
+            self.assertEqual(urls, [course['url'] for courses in tracks.values() for course in courses])
+            self.assertIn('概率与统计 · 独立支线', chapters)
+            self.assertIn('待发布', chapters)
+            lesson = next(item for item in lessons if item['id'] == 'partial-derivative-and-gradient')
+            page = SimpleNamespace(file=SimpleNamespace(src_uri=lesson['file']), meta={})
+            rendered = site_hook.on_page_markdown('# 测试正文', page, {}, [])
+            neighbors = rendered.split('aria-label="前后篇">')[1]
+            self.assertIn('上一篇', neighbors)
+            self.assertIn('下一篇 · 待发布', neighbors)
+            self.assertIn('../../generated/stages/training/#concept-chain-rule', neighbors)
+            self.assertNotIn('statistical-power', neighbors)
+            self.assertNotIn('conditional-probability', neighbors)
+            self.assertTrue(course_neighbors(tracks, 'relu')[1]['id'] == 'rnn')
+
+    def test_recommendations(self):
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('推荐测试需要 Node.js；仅使用内置测试模块')
+        with tempfile.TemporaryDirectory() as directory:
+            navigation = Path(directory) / 'navigation.json'
+            navigation.write_text(json.dumps(course_tracks(load_plan(), load_lessons()), ensure_ascii=False), encoding='utf-8')
+            run = subprocess.run([node, str(ROOT / 'scripts/test_navigation.cjs'), str(navigation)], capture_output=True)
+            self.assertEqual(run.returncode, 0, (run.stdout + run.stderr).decode('utf-8', errors='replace'))
 
 
 class ContentChecks(unittest.TestCase):
