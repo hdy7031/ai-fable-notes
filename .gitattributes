@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# Preserve imported lesson bodies, including their original line endings.
+docs/lessons/*.md -text

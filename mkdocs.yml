@@ -1,0 +1,54 @@
+site_name: AI 寓言笔记
+site_description: 用故事理解 AI，沿着知识路径慢慢读。
+site_url: https://hdy7031.github.io/ai-fable-notes/
+repo_url: https://github.com/hdy7031/ai-fable-notes
+repo_name: hdy7031/ai-fable-notes
+edit_uri: edit/main/docs/
+copyright: 阅读进度保存在当前浏览器 · Markdown 是唯一正文来源
+theme:
+  name: material
+  language: zh
+  font: false
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: 切换深色模式
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: 切换浅色模式
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+plugins:
+  - search:
+      lang: zh
+hooks:
+  - scripts/site_hook.py
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+extra_css:
+  - assets/styles.css
+extra_javascript:
+  - assets/progress.js
+  - assets/math.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js
+nav:
+  - 首页: index.md

@@ -1,0 +1,81 @@
+name: Daily API fallback (opt-in)
+on:
+  schedule:
+    # 00:20 UTC = 北京时间 08:20。GitHub 调度可能延迟。
+    - cron: '20 0 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-refs/heads/main
+  cancel-in-progress: false
+jobs:
+  generate:
+    if: vars.DAILY_API_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      published: ${{ steps.published.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Reserve date
+        id: claim
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+        run: python scripts/daily_api.py claim
+      - name: Persist claim before calling model
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .automation/
+          git commit -m 'Reserve daily article generation'
+          git push origin HEAD:main
+      - name: Generate once
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          OPENAI_MAX_OUTPUT_TOKENS: ${{ vars.OPENAI_MAX_OUTPUT_TOKENS }}
+        run: python scripts/daily_api.py generate
+      - name: Validate and build
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          python scripts/check.py
+          mkdocs build --strict
+      - name: Commit complete article
+        if: steps.claim.outputs.claimed == 'true'
+        id: published
+        run: |
+          git add docs/lessons/ .automation/
+          git commit -m 'Publish daily AI fable'
+          git push origin HEAD:main
+          echo 'value=true' >> "$GITHUB_OUTPUT"
+      # GITHUB_TOKEN pushes do not trigger the other push workflow.
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.published.outputs.value == 'true'
+        with:
+          path: site
+  deploy:
+    needs: generate
+    if: needs.generate.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

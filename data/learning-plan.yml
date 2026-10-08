@@ -1,0 +1,36 @@
+stages:
+  - id: cnn
+    title: 卷积神经网络
+    description: 从局部观察，到特征提取
+    concepts:
+      - {id: receptive-field, title: 感受野, order: 10, prerequisites: []}
+      - {id: pooling, title: 池化, order: 20, prerequisites: [receptive-field]}
+      - {id: parameters-and-flops, title: 参数量与计算量, order: 30, prerequisites: [pooling]}
+      - {id: relu, title: ReLU, order: 40, prerequisites: [parameters-and-flops]}
+  - id: training
+    title: 训练机制
+    description: 理解模型怎样从错误中学习
+    concepts:
+      - {id: loss, title: Loss, order: 50, prerequisites: [relu]}
+      - {id: derivative, title: 导数, order: 60, prerequisites: [loss]}
+      - {id: partial-derivative-and-gradient, title: 偏导数与梯度, order: 70, prerequisites: [derivative]}
+      - {id: chain-rule, title: 链式法则, order: 80, prerequisites: [partial-derivative-and-gradient]}
+      - {id: computational-graph-and-backpropagation, title: 计算图与反向传播, order: 90, prerequisites: [chain-rule]}
+      - {id: gradient-descent, title: 梯度下降, order: 100, prerequisites: [computational-graph-and-backpropagation]}
+  - id: statistics
+    title: 概率统计
+    description: 从随机现象，到可靠的判断
+    concepts:
+      - {id: expectation-and-variance, title: 期望与方差, order: 110, prerequisites: []}
+      - {id: law-of-large-numbers, title: 大数定律, order: 120, prerequisites: [expectation-and-variance]}
+      - {id: central-limit-theorem, title: 中心极限定理, order: 130, prerequisites: [law-of-large-numbers]}
+      - {id: confidence-interval, title: 置信区间, order: 140, prerequisites: [central-limit-theorem]}
+      - {id: hypothesis-testing, title: 假设检验, order: 150, prerequisites: [confidence-interval]}
+      - {id: statistical-power, title: 统计功效, order: 160, prerequisites: [hypothesis-testing]}
+  - id: probability
+    title: 概率推理
+    description: 面对新证据，更新原有认识
+    concepts:
+      - {id: conditional-probability, title: 条件概率, order: 170, prerequisites: []}
+      - {id: bayes-theorem, title: 贝叶斯定理, order: 180, prerequisites: [conditional-probability]}
+      - {id: total-probability, title: 全概率公式, order: 190, prerequisites: [bayes-theorem]}

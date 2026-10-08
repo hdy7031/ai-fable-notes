@@ -1,0 +1,42 @@
+:root { --fable-green: #146b5d; --fable-cream: #f6f5ef; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.md-header { background: #164e45; }
+.md-tabs { background: #164e45; }
+.md-typeset { font-size: .83rem; line-height: 1.95; }
+.md-typeset h1, .md-typeset h2, .md-typeset h3 { font-weight: 650; letter-spacing: -.025em; }
+.md-typeset h1 { color: var(--md-default-fg-color); line-height: 1.45; }
+.md-typeset p { margin-block: 1.15em; }
+.md-typeset .fable-hero { padding: 2.4rem 2rem; border-radius: 1rem; background: var(--fable-cream); margin-bottom: 1.8rem; border: 1px solid #e3e6dc; }
+.md-typeset .fable-hero h1 { font-size: 2rem; max-width: 25rem; margin: .8rem 0; color: #174d44; }
+.fable-hero p { max-width: 31rem; color: #4f655e; }
+.eyebrow { font-size: .6rem; letter-spacing: .13em; font-weight: 700; color: #537567; }
+.md-typeset .fable-primary { display: inline-block; padding: .6rem .9rem; background: #146b5d; border-radius: .4rem; color: white; font-size: .7rem; font-weight: 600; margin: .5rem .7rem .4rem 0; }
+.md-typeset .fable-secondary { font-size: .7rem; font-weight: 600; color: #146b5d; }
+.dashboard-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.4rem 0; }
+.dashboard-stats div { border-left: 2px solid #a9c6b5; padding-left: .8rem; }
+.dashboard-stats strong { display: block; font-size: 1.7rem; font-weight: 650; line-height: 1.3; }
+.dashboard-stats span { font-size: .65rem; color: var(--md-default-fg-color--light); }
+#overall-progress { display: block; width: 100%; height: .45rem; border: 0; border-radius: 1rem; overflow: hidden; accent-color: #146b5d; }
+#overall-progress::-webkit-progress-bar { background: #e9eee8; }
+#overall-progress::-webkit-progress-value { background: #146b5d; border-radius: 1rem; }
+.subtle { font-size: .7rem; color: var(--md-default-fg-color--light); }
+.stage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1.8rem 0; }
+.stage-card { padding: 1.2rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: .7rem; }
+.stage-number { color: #54816f; font-size: .6rem; letter-spacing: .1em; }
+.md-typeset .stage-card h3 { margin: .4rem 0; font-size: 1rem; }
+.md-typeset .stage-card p { margin: .4rem 0 1rem; font-size: .7rem; color: var(--md-default-fg-color--light); }
+.stage-card small { display: block; color: var(--md-default-fg-color--light); font-size: .6rem; }
+.stage-card a { display: inline-block; margin-top: .7rem; font-size: .65rem; font-weight: 600; }
+.lesson-controls { padding: .8rem 1rem; margin-bottom: 1.5rem; background: var(--md-code-bg-color); border-radius: .5rem; font-size: .65rem; }
+.lesson-controls span { display: block; margin-bottom: .5rem; }
+.lesson-controls p { margin: .4rem 0 0; min-height: 1rem; }
+.md-typeset button, .import-label { cursor: pointer; padding: .4rem .75rem; border: 1px solid #558779; border-radius: .3rem; color: var(--md-typeset-a-color); font: inherit; font-size: .7rem; background: transparent; }
+.md-typeset button:focus-visible, .import-label:focus-within, .fable-primary:focus-visible { outline: 3px solid #a4c6ba; outline-offset: 3px; }
+.is-completed { border-left: 3px solid #146b5d; }
+.progress-tools { padding: 1rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: .5rem; }
+.progress-tools input { display: block; margin-top: .7rem; max-width: 100%; font-size: .65rem; }
+#storage-warning { padding: .7rem; background: #fff1d1; color: #715614; border-radius: .4rem; }
+[data-md-color-scheme="slate"] .fable-hero { background: #203d36; border-color: #36534a; }
+[data-md-color-scheme="slate"] .fable-hero h1, [data-md-color-scheme="slate"] .fable-hero p, [data-md-color-scheme="slate"] .eyebrow { color: #d8e9df; }
+[data-md-color-scheme="slate"] .fable-secondary { color: #9bd4bd; }
+@media (max-width: 600px) { .md-typeset .fable-hero { padding: 1.5rem 1rem; } .md-typeset .fable-hero h1 { font-size: 1.5rem; } .stage-grid { grid-template-columns: 1fr; } .dashboard-stats { gap: .5rem; } .dashboard-stats strong { font-size: 1.4rem; } }

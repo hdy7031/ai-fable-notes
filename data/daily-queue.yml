@@ -1,0 +1,3 @@
+# 只放未来新文章，不能用它填充缺失的历史正文。
+# 配置示例见 docs/guide/publishing.md。
+lessons: []
