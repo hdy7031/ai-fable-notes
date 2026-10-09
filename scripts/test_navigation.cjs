@@ -13,13 +13,16 @@ const state = (ids = [], lastRead = null) => ({
 const trainingEnd = "partial-derivative-and-gradient";
 const throughTraining = navigation.main.slice(0, navigation.main.findIndex(item => item.id === trainingEnd) + 1).map(item => item.id);
 
-test("完成训练机制已发布末篇：停在链式法则，不跳 CNN 或概率统计", () => {
+test("训练课程新增后，推荐能由待发布自动转为已发布，不跳 CNN 或统计支线", () => {
   const progress = state(throughTraining, trainingEnd);
   const before = JSON.stringify(progress);
   const result = recommendation(navigation, progress);
-  assert.equal(result.kind, "pending");
-  assert.equal(result.item.id, "chain-rule");
-  assert.equal(result.item.url, "generated/stages/training/#concept-chain-rule");
+  const nextCourse = navigation.main.find((item, index) =>
+    index === navigation.main.findIndex(course => course.id === trainingEnd) + 1);
+  assert.ok(nextCourse);
+  assert.equal(result.kind, nextCourse.published ? "next" : "pending");
+  assert.equal(result.item.id, nextCourse.id);
+  assert.equal(result.item.url, nextCourse.url);
   assert.equal(result.track, "main");
   assert.equal(JSON.stringify(progress), before, "推荐不得改写进度");
 });
@@ -59,9 +62,14 @@ test("全部主线完成：提供主线回顾，不自动切换未读的概率�
   assert.equal(result.kind, "complete");
   assert.equal(result.track, "main");
   assert.equal(result.item.id, fixture.main.at(-1).id);
-  // Completing only published main articles still leaves future lessons pending.
+  // Newly published lessons change the first remaining gap; never hardcode its id.
   const publishedDone = recommendation(navigation, state(navigation.main.filter(item => item.published).map(item => item.id)));
-  assert.equal(publishedDone.kind, "pending");
+  const firstMissing = navigation.main.find(item => !item.published);
   assert.equal(publishedDone.track, "main");
-  assert.equal(publishedDone.item.id, "chain-rule");
+  if (firstMissing) {
+    assert.equal(publishedDone.kind, "pending");
+    assert.equal(publishedDone.item.id, firstMissing.id);
+  } else {
+    assert.equal(publishedDone.kind, "complete");
+  }
 });
