@@ -49,8 +49,15 @@ class NavigationChecks(unittest.TestCase):
             rendered = site_hook.on_page_markdown('# 测试正文', page, {}, [])
             neighbors = rendered.split('aria-label="前后篇">')[1]
             self.assertIn('上一篇', neighbors)
-            self.assertIn('下一篇 · 待发布', neighbors)
-            self.assertIn('../../generated/stages/training/#concept-chain-rule', neighbors)
+            next_course = course_neighbors(tracks, lesson['id'])[1]
+            self.assertIsNotNone(next_course)
+            self.assertIn('下一篇', neighbors)
+            self.assertIn(next_course['title'], neighbors)
+            self.assertIn('../../' + next_course['url'], neighbors)
+            if next_course['published']:
+                self.assertNotIn('下一篇 · 待发布', neighbors)
+            else:
+                self.assertIn('下一篇 · 待发布', neighbors)
             self.assertNotIn('statistical-power', neighbors)
             self.assertNotIn('conditional-probability', neighbors)
             self.assertTrue(course_neighbors(tracks, 'relu')[1]['id'] == 'rnn')
@@ -62,24 +69,35 @@ class NavigationChecks(unittest.TestCase):
             root = Path(directory)
             shutil.copytree(ROOT / 'data', root / 'data')
             shutil.copytree(ROOT / 'docs/lessons', root / 'docs/lessons')
+            existing_ids = {item['id'] for item in load_lessons(root)}
+            future = next(((stage, concept)
+                for stage in load_plan(root)['stages']
+                for concept in stage['concepts']
+                if concept['id'] not in existing_ids), None)
+            if future is None:
+                self.skipTest('所有计划课程已发布，没有新增文章的测试候选')
+            stage, concept = future
+            new_id = concept['id']
             candidate = root / 'candidate.md'
-            candidate.write_text(compose(dict(id='chain-rule', title='新发布课程', date='2026-10-09',
-                category='training', order=80, prerequisites=['partial-derivative-and-gradient'],
+            candidate.write_text(compose(dict(id=new_id, title='新发布课程', date='2026-10-10',
+                category=stage['id'], order=concept['order'],
+                prerequisites=concept.get('prerequisites', []),
                 next_concepts=[]), '完整测试正文。'), encoding='utf-8')
             publish(candidate, root)
             lessons = load_lessons(root)
             dates = library_dates(lessons, root)
-            self.assertEqual(dates['chain-rule']['label'], '发布')
+            self.assertEqual(dates[new_id]['label'], '发布')
             self.assertEqual(dates['vectors-and-matrices']['label'], '入库')
             self.assertIsNone(next(x for x in lessons if x['id'] == 'vectors-and-matrices')['date'])
             unknown = dict(lessons[-1], id='unknown-date', date=None)
             self.assertNotIn('unknown-date', library_dates([unknown], root))
-            self.assertEqual(len(load_entry_index(root)), len(load_lessons()))
+            self.assertTrue(set(load_entry_index(root)).issubset({item['id'] for item in lessons}))
+            self.assertEqual(len(load_entry_index(root)), len(load_entry_index(ROOT)))
             with patch.multiple(site_hook, ROOT=root, load_lessons=lambda: lessons,
                     load_plan=lambda: load_plan(root), library_dates=lambda items: library_dates(items, root)):
                 config = site_hook.on_config({})
             library = (root / 'docs/generated/library.md').read_text(encoding='utf-8')
-            self.assertIn('data-library-id="chain-rule"', library)
+            self.assertIn(f'data-library-id="{new_id}"', library)
             self.assertEqual(library.count('data-library-id='), len(lessons))
             for name in ('domains', 'chapters', 'archive'):
                 legacy = (root / f'docs/generated/{name}.md').read_text(encoding='utf-8')
