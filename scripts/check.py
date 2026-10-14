@@ -116,6 +116,89 @@ class NavigationChecks(unittest.TestCase):
             self.assertEqual(run.returncode, 0, (run.stdout + run.stderr).decode('utf-8', errors='replace'))
 
 
+class MathChecks(unittest.TestCase):
+    def render(self, source, body_format=None):
+        import markdown
+        import site_hook
+        from mkdocs.config import load_config
+        lessons, plan = load_lessons(), load_plan()
+        lesson = dict(lessons[0], body_format=body_format)
+        page = SimpleNamespace(file=SimpleNamespace(src_uri=lesson['file']), meta={})
+        with patch.multiple(site_hook, LESSONS=[lesson], PLAN=plan,
+                NAVIGATION=course_tracks(plan, lessons)):
+            rendered = site_hook.on_page_markdown(source, page, {}, [])
+        config = load_config(str(ROOT / 'mkdocs.yml'))
+        return markdown.markdown(rendered, extensions=config['markdown_extensions'],
+                                 extension_configs=config['mdx_configs'])
+
+    def test_matrix_without_blank_lines(self):
+        from html import unescape
+        expression = r'X=\begin{bmatrix}2&1&0\\2&9&1\\3&4&0\end{bmatrix}.'
+        source = '矩阵：\n\\[\n' + expression + '\n\\]\n解释。'
+        html = self.render(source)
+        self.assertIn('<div class="arithmatex">\\[\n' + expression + '\n\\]</div>', unescape(html))
+        self.assertIn('<p>解释。</p>', html)
+
+    def test_normalized_dollars_and_idempotency(self):
+        from site_hook import _normalize_display_math
+        source = '公式：\n\n$$\nx^2\n$$\n\n解释。\n'
+        self.assertEqual(_normalize_display_math(source), source)
+        self.assertEqual(self.render(source).count('<div class="arithmatex">'), 1)
+        adjacent = '前文\r\n\\[\r\nx\r\n\\]\r\n$$\r\ny\r\n$$\r\n后文'
+        normalized = _normalize_display_math(adjacent)
+        self.assertEqual(_normalize_display_math(normalized), normalized)
+        self.assertEqual(normalized.replace('\r\n\r\n', '\r\n'), adjacent)
+        spaced = '前文\n\\[  \n x\n\\]  \n后文'
+        self.assertEqual(_normalize_display_math(spaced), '前文\n\n\\[  \n x\n\\]  \n\n后文')
+
+    def test_adjacent_blocks(self):
+        html = self.render('前文\n\\[\nx\n\\]\n$$\ny\n$$\n后文')
+        self.assertEqual(html.count('<div class="arithmatex">'), 2)
+        self.assertIn('<p>后文</p>', html)
+
+    def test_inline_math_and_paragraphs_unchanged(self):
+        from site_hook import _normalize_display_math
+        source = '段落含 \\(x^2\\) 与 $y$。\n普通换行。\n\n另一段。'
+        self.assertEqual(_normalize_display_math(source), source)
+        self.assertEqual(self.render(source).count('<span class="arithmatex">'), 2)
+
+    def test_code_examples_unchanged(self):
+        from site_hook import _normalize_display_math
+        for fence in ('```', '~~~~'):
+            source = fence + 'text\n\\[\nx\n\\]\n$$\ny\n$$\n```\n' + fence + '\n'
+            with self.subTest(fence=fence):
+                self.assertEqual(_normalize_display_math(source), source)
+                self.assertNotIn('class="arithmatex"', self.render(source))
+        source = '示例：\n\n    \\[\n    x\n    \\]\n'
+        self.assertEqual(_normalize_display_math(source), source)
+        self.assertNotIn('class="arithmatex"', self.render(source))
+        self.assertEqual(_normalize_display_math(source.replace('    ', '\t')), source.replace('    ', '\t'))
+        listed = '- ```text\n    \\[\n    x\n    \\]\n    ```\n'
+        self.assertEqual(_normalize_display_math(listed), listed)
+        self.assertNotIn('class="arithmatex"', self.render(listed))
+
+    def test_math_inside_list_keeps_list_structure(self):
+        from site_hook import _normalize_display_math
+        source = '- 列表项\n    \\[\n    x^2\n    \\]\n    项内说明。\n\n- 下一项\n'
+        html = self.render(source)
+        self.assertEqual(html.count('<li>'), 2)
+        self.assertIn('<div class="arithmatex">', html.split('</li>')[0])
+        self.assertIn('<p>项内说明。</p>', html.split('</li>')[0])
+        normalized = _normalize_display_math(source)
+        self.assertEqual(_normalize_display_math(normalized), normalized)
+        code = '- 示例\n\n        \\[\n        x\n        \\]\n'
+        self.assertEqual(_normalize_display_math(code), code)
+
+    def test_plain_text_conversion_keeps_math_tables_and_diagrams(self):
+        source = '今日寓言：测试\n故事第一句。\n故事第二句。\n一、公式\n\\[\nx^2\n\\]\n寓言\t概念\n哨兵\t感受野\n原图\n ↓\nConv 1\n'
+        html = self.render(source, 'plain-text')
+        self.assertEqual(html.count('<div class="arithmatex">'), 1)
+        self.assertIn('<p>故事第一句。</p>\n<p>故事第二句。</p>', html)
+        self.assertIn('<table>', html)
+        self.assertIn('<td>感受野</td>', html)
+        self.assertIn('<code', html)
+
+
 class ContentChecks(unittest.TestCase):
     def test_pasted_display_preserves_math_and_restores_tables(self):
         from pasted_render import render_pasted

@@ -52,6 +52,62 @@ def _render_original(markdown):
     return "".join(rendered)
 
 
+def _normalize_display_math(markdown):
+    """Separate standalone math blocks without changing their lines or code examples."""
+    lines = markdown.splitlines(keepends=True)
+    rendered, fence, list_indent, i = [], None, None, 0
+    fence_pattern = r"^[ \t]*(?:>[ \t]*)*(?:(?:[-+*]|\d+[.)])[ \t]+)?(`{3,}|~{3,})(.*)$"
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        prefix = line[:len(line) - len(line.lstrip(' \t'))]
+        indent = len(prefix.expandtabs(4))
+        fence_match = re.match(fence_pattern, line.rstrip('\r\n'))
+        if fence_match:
+            marker, tail = fence_match.groups()
+            if fence is None:
+                fence = marker
+            elif marker[0] == fence[0] and len(marker) >= len(fence) and not tail.strip():
+                fence = None
+            rendered.append(line)
+            i += 1
+            continue
+        if fence is not None:
+            rendered.append(line)
+            i += 1
+            continue
+        item = re.match(r"^([ \t]*)(?:[-+*]|\d+[.)])([ \t]+)", line)
+        if item:
+            list_indent = len(item[1].expandtabs(4)) + max(4, len(item[0]) - len(item[1]))
+        elif stripped and list_indent is not None and indent < list_indent:
+            list_indent = None
+        # Four-space code is literal, except at a list's content indentation.
+        is_code = indent >= (list_indent + 4 if list_indent is not None else 4)
+        if stripped not in (r"\[", "$$") or is_code:
+            rendered.append(line)
+            i += 1
+            continue
+        end = r"\]" if stripped == r"\[" else "$$"
+        j = i + 1
+        while j < len(lines) and lines[j].strip() not in (r"\[", r"\]", "$$"):
+            if re.match(fence_pattern, lines[j].rstrip('\r\n')):
+                break
+            j += 1
+        # Leave incomplete or mismatched examples alone; require the same indentation.
+        if j == len(lines) or lines[j].strip() != end or lines[j].rstrip() != prefix + end:
+            rendered.append(line)
+            i += 1
+            continue
+        newline = '\r\n' if line.endswith('\r\n') else '\n'
+        if rendered and rendered[-1].strip():
+            rendered.append(newline)
+        rendered.extend(lines[i:j + 1])
+        if j + 1 < len(lines) and lines[j + 1].strip():
+            rendered.append(newline)
+        i = j + 1
+    return ''.join(rendered)
+
+
 def _known():
     concepts = {c["id"]: dict(c, stage=s["id"]) for s in PLAN["stages"] for c in s["concepts"]}
     for lesson in LESSONS:
@@ -236,6 +292,7 @@ def on_page_markdown(markdown, page, config, files):
     page.meta['hide'] = ['navigation']
     page.meta['fable_layout'] = 'reading'
     markdown = render_pasted(markdown) if lesson.get('body_format') == 'plain-text' else _render_original(markdown)
+    markdown = _normalize_display_math(markdown)
     if not markdown.lstrip().startswith('# '):
         markdown = f"# {lesson['title']}\n\n" + markdown
     stage = next(s for s in PLAN['stages'] if s['id'] == lesson['category'])
