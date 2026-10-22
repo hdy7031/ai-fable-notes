@@ -44,35 +44,46 @@ def selected_branch(conversation: dict) -> list[dict]:
     return list(reversed(nodes))
 
 
-def candidates(path: Path) -> dict:
+def candidates(path: Path, include_user=False, title_keywords=(), conversation_ids=None) -> dict:
     output = {}
     for conversation in read_export(path):
+        if title_keywords and not any(word.casefold() in conversation.get('title', '').casefold() for word in title_keywords):
+            continue
         conv_id = conversation.get("id") or conversation.get("conversation_id")
+        if conversation_ids is not None and conv_id not in conversation_ids:
+            continue
         if not conv_id:
             raise ValueError("对话缺少唯一 ID")
         for position, node in enumerate(selected_branch(conversation)):
             message = node.get("message")
-            if not message or message.get("author", {}).get("role") != "assistant":
+            if not message or message.get("author", {}).get("role") not in (("assistant", "user") if include_user else ("assistant",)):
                 continue
             if message.get("metadata", {}).get("is_visually_hidden_from_conversation"):
                 continue
             if message.get("channel") not in (None, "final"):
                 continue
+            if message.get('recipient') not in (None, 'all'):
+                continue
             content = message.get("content", {})
             parts = content.get("parts", [])
-            # Never silently drop images, attachments, or structured content.
-            if content.get("content_type") != "text" or not parts or any(not isinstance(x, str) for x in parts):
-                continue
-            body = "\n".join(parts)
+            # Keep unsupported visible turns as blockers for multi-turn course imports.
+            supported = (content.get("content_type") == "text" and bool(parts)
+                         and all(isinstance(x, str) for x in parts)
+                         and not message.get('metadata', {}).get('attachments'))
+            body = "\n".join(parts) if supported else ""
             if not body.strip():
-                continue
+                if not include_user:
+                    continue
+                supported = False
             message_id = message.get("id") or node.get("id")
             key = f"{conv_id}/{message_id}"
+            if not message_id or key in output:
+                raise ValueError('消息 ID 缺失或重复，无法可靠追溯')
             timestamp = message.get("create_time")
             date = None
             if isinstance(timestamp, (int, float)):
                 date = dt.datetime.fromtimestamp(timestamp, dt.timezone(dt.timedelta(hours=8))).date().isoformat()
-            output[key] = {"conversation_id": conv_id, "message_id": message_id, "conversation_title": conversation.get("title", ""), "position": position, "date": date, "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(), "body": body}
+            output[key] = {"conversation_id": conv_id, "message_id": message_id, "conversation_title": conversation.get("title", ""), "position": position, "role": message["author"]["role"], "supported": supported, "create_time": timestamp, "date": date, "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(), "body": body}
     return output
 
 
@@ -84,18 +95,18 @@ def private_path(path: Path) -> Path:
     return resolved
 
 
-def scan(source: Path, output: Path) -> int:
+def scan(source: Path, output: Path, include_user=False, title_keywords=()) -> int:
     output = private_path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     body_dir = output.parent / "candidates"
     body_dir.mkdir(exist_ok=True)
     rows = []
-    for key, item in candidates(source).items():
+    for key, item in candidates(source, include_user=include_user, title_keywords=title_keywords).items():
         filename = hashlib.sha256(key.encode()).hexdigest()[:24] + ".md"
         path = body_dir / filename
         path.write_text(item["body"], encoding="utf-8", newline="")
         rows.append({k: v for k, v in item.items() if k != "body"} | {"candidate_file": str(path.relative_to(ROOT))})
-    output.write_text(json.dumps({"version": 1, "candidates": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+    output.write_text(json.dumps({"version": 1, "export_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), "candidates": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
     return len(rows)
 
 
@@ -161,18 +172,119 @@ def import_selected(source: Path, selection: Path) -> int:
     return len(created)
 
 
+def import_course(source: Path, selection: Path) -> int:
+    """Explicit contiguous teaching turns; source IDs and receipts stay private."""
+    from ocr_course import load_course, load_chapters
+    selection = private_path(selection)
+    manifest = json.loads(selection.read_text(encoding="utf-8"))
+    export_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+    if manifest.get("export_sha256") != export_sha:
+        raise ValueError("原始导出 SHA-256 不一致，请重新扫描")
+    entries = manifest["chapters"]
+    if not entries:
+        raise ValueError("没有明确选择的 OCR 章节")
+    available = candidates(source, include_user=True,
+                           conversation_ids={entry['conversation_id'] for entry in entries})
+    plan = load_course()['chapters']
+    known = {chapter['id']: chapter for chapter in plan}
+    existing = {chapter['id'] for chapter in load_chapters()}
+    prepared, claimed = [], set()
+    positions = {}
+    for entry in entries:
+        if entry.get('privacy_reviewed') is not True:
+            raise ValueError('每章必须逐条阅读并明确 privacy_reviewed: true')
+        chapter = known.get(entry['id'])
+        if not chapter or chapter['id'] in existing:
+            raise ValueError('OCR 章节未知或已存在，禁止覆盖')
+        existing.add(chapter['id'])
+        messages = []
+        for ref in entry['messages']:
+            key = f"{entry['conversation_id']}/{ref['message_id']}"
+            item = available.get(key)
+            if not item or not item.get('supported') or item['sha256'] != ref.get('sha256'):
+                raise ValueError('选中消息不在有效文本分支、含附件或 SHA-256 已改变')
+            if key in claimed:
+                raise ValueError('同一消息不能重复导入多个章节')
+            claimed.add(key)
+            messages.append(item)
+        if not messages or not any(x['role'] == 'assistant' for x in messages):
+            raise ValueError('章节必须包含完整助手教学消息')
+        order = [x['position'] for x in messages]
+        if order != sorted(order) or len(order) != len(set(order)):
+            raise ValueError('章节消息必须按原文顺序且不能重复')
+        span = [x for x in available.values() if x['conversation_id'] == entry['conversation_id']
+                and order[0] <= x['position'] <= order[-1]]
+        if len(span) != len(messages):
+            raise ValueError('选中范围有遗漏问答或附件，不得跳过后声称章节完整')
+        positions.setdefault(entry['conversation_id'], []).append((order[0], order[-1], chapter['order']))
+        # Only add turn labels and whitespace. Never regenerate or trim source bodies.
+        body = '\n\n'.join(f"## 第 {i} 轮 · {'追问' if item['role'] == 'user' else '讲解'}\n\n{item['body']}"
+                             for i, item in enumerate(messages, 1))
+        first_answer = next(x for x in messages if x['role'] == 'assistant')
+        index = plan.index(chapter)
+        meta = dict(id=chapter['id'], title=chapter['title'], date=first_answer['date'],
+                    category='ocr', course='ocr', order=chapter['order'],
+                    prerequisites=[plan[index - 1]['id']] if index else [],
+                    next_concepts=[plan[index + 1]['id']] if index + 1 < len(plan) else [],
+                    source='chatgpt-export')
+        filename = f"{meta['date'] or 'undated'}-{meta['id']}.md"
+        validate(meta, body, filename)
+        target = ROOT / 'docs/ocr/chapters' / filename
+        receipt = private_path(ROOT / '.private/ocr/receipts' / (meta['id'] + '.json'))
+        if target.exists() or receipt.exists():
+            raise ValueError('章节文件或私有来源记录已存在，保留原件并停止')
+        provenance = dict(version=1, export_sha256=export_sha, source_path=str(source.resolve()),
+                          chapter_id=meta['id'], target=str(target.relative_to(ROOT)),
+                          body_sha256=hashlib.sha256(body.encode('utf-8')).hexdigest(),
+                          messages=[{k: v for k, v in x.items() if k != 'body'} for x in messages],
+                          privacy_reviewed=True)
+        prepared.append((target, compose(meta, body), receipt, provenance))
+    for ranges in positions.values():
+        ordered = sorted(ranges)
+        if ([x[2] for x in ordered] != sorted(x[2] for x in ordered)
+                or any(a[1] >= b[0] for a, b in zip(ordered, ordered[1:]))):
+            raise ValueError('章节范围重叠或课程顺序与原文冲突')
+    created = []
+    try:
+        for target, text, receipt, provenance in prepared:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            receipt.parent.mkdir(parents=True, exist_ok=True)
+            for path, value in ((receipt, json.dumps(provenance, ensure_ascii=False, indent=2)),
+                                (target, text)):
+                with path.open('x', encoding='utf-8', newline='') as output:
+                    created.append(path)
+                    output.write(value)
+        load_chapters()
+    except Exception:
+        for path in reversed(created):
+            path.unlink()
+        raise
+    return len(prepared)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     scan_parser = commands.add_parser("scan")
     scan_parser.add_argument("export", type=Path)
     scan_parser.add_argument("--output", type=Path, default=ROOT / ".private/candidates.json")
+    scan_parser.add_argument("--include-user", action="store_true", help="OCR 多轮教学：保留用户追问与不支持的附件标记")
+    scan_parser.add_argument("--title-keywords", default="", help="逗号分隔，先按会话标题筛选")
+    course_parser = commands.add_parser("import-course")
+    course_parser.add_argument("export", type=Path)
+    course_parser.add_argument("--selection", type=Path, required=True)
     import_parser = commands.add_parser("import")
     import_parser.add_argument("export", type=Path)
     import_parser.add_argument("--selection", type=Path, required=True)
     args = parser.parse_args()
     try:
-        count = scan(args.export, args.output) if args.command == "scan" else import_selected(args.export, args.selection)
+        if args.command == "scan":
+            count = scan(args.export, args.output, args.include_user,
+                         tuple(word.strip() for word in args.title_keywords.split(',') if word.strip()))
+        elif args.command == "import-course":
+            count = import_course(args.export, args.selection)
+        else:
+            count = import_selected(args.export, args.selection)
         print(f"{'本地候选消息' if args.command == 'scan' else '已导入完整文章'}: {count}")
     except (ValueError, KeyError, OSError, json.JSONDecodeError) as error:
         parser.exit(1, f"导入停止: {error}\n")

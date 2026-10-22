@@ -265,5 +265,8 @@ class ContentChecks(unittest.TestCase):
             self.assertNotIn("无关用户消息", actual)
 
 
+from check_ocr import OcrChecks
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

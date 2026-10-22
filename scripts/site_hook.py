@@ -10,8 +10,10 @@ from content import ROOT, load_lessons, load_plan
 from curriculum import MAIN_STAGES, MAIN_DESCRIPTION, ordered_stages, navigation_lessons, course_tracks, course_neighbors
 from pasted_render import render_pasted
 from library_dates import library_dates
+from ocr_course import load_chapters, course_track, course_index, render_chapter
 
 LESSONS = []
+OCR_CHAPTERS = []
 PLAN = {}
 NAVIGATION = {}
 
@@ -250,12 +252,13 @@ def _course_rows(stage):
 
 
 def on_config(config):
-    global LESSONS, PLAN, NAVIGATION
+    global LESSONS, OCR_CHAPTERS, PLAN, NAVIGATION
     plan = load_plan()
     PLAN = dict(plan, stages=ordered_stages(plan))
     LESSONS = navigation_lessons(plan, load_lessons())
     NAVIGATION = course_tracks(plan, LESSONS)
     known, gaps = _known(), _gaps()
+    OCR_CHAPTERS = load_chapters(ROOT)
     generated = ROOT / 'docs/generated'
     gap_links = '、'.join(_concept_link(i, 2) for i in sorted(gaps, key=lambda i: known[i]['order'])) or '目前已发布课程的前置正文已齐全。'
     route = f'<div class="route-summary"><strong>{len(LESSONS)} 篇已发布</strong><span>{len(known)} 个计划概念</span><span>完成状态随阅读同步</span></div>{_stage_cards("../../")}<section id="prerequisite-gaps" class="gap-note"><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
@@ -269,9 +272,10 @@ def on_config(config):
     for index, stage in enumerate(PLAN['stages'], 1):
         text = _page(stage['title'], html.escape(stage['description']), f'<a class="back-link" href="../../path/">← 全部学习路线</a><p class="subtle">阶段 {index:02d} · 已发布正文可直接阅读；前置待补录与未来计划不会链接到不存在的文章。</p>' + _course_rows(stage))
         _write_if_changed(generated / 'stages' / f'{stage["id"]}.md', text)
-    _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION}, ensure_ascii=False, indent=2))
+    _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION, 'courses': {'ocr': course_track(ROOT)}}, ensure_ascii=False, indent=2))
     config['nav'] = [
         {'首页': 'index.md'},
+        {'OCR 从零入门': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
         {'学习路线': ['generated/path.md'] + [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages']] + [{'待补录清单': 'generated/missing.md'}]},
         {'文章库': ['generated/library.md'] + [{s['title']: [{_concept_title(x): x['file']} for x in LESSONS if x['category'] == s['id']]} for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)]},
     ]
@@ -284,6 +288,14 @@ def on_pre_build(config):
 
 
 def on_page_markdown(markdown, page, config, files):
+    if page.file.src_uri == 'ocr/index.md':
+        return course_index(ROOT)
+    chapter = next((x for x in OCR_CHAPTERS if x['file'] == page.file.src_uri), None)
+    if chapter:
+        page.meta['hide'] = ['navigation']
+        page.meta['fable_layout'] = 'reading'
+        markdown = _normalize_display_math(_render_original('# ' + chapter['title'] + '\n\n' + markdown))
+        return render_chapter(markdown, chapter, ROOT)
     if page.file.src_uri == 'index.md':
         return markdown.replace('<!-- HOME_DASHBOARD -->', _home_dashboard())
     lesson = next((x for x in LESSONS if x['file'] == page.file.src_uri), None)

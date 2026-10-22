@@ -1,0 +1,10 @@
+title: OCR 从零入门
+chapters:
+  - {id: ocr-pixels-rgb, title: 图像像素与 RGB, order: 1, status: pending}
+  - {id: ocr-convolution-features, title: 卷积与特征, order: 2, status: pending}
+  - {id: ocr-training, title: 神经网络训练机制, order: 3, status: pending}
+  - {id: ocr-cnn-structure, title: CNN 完整结构, order: 4, status: pending}
+  - {id: ocr-dbnet, title: DBNet：文字检测, order: 5, status: planned}
+  - {id: ocr-crnn-ctc, title: CRNN / CTC：文字识别, order: 6, status: planned}
+  - {id: ocr-paddleocr, title: PaddleOCR 实战, order: 7, status: planned}
+  - {id: ocr-document-intelligence, title: 文档智能, order: 8, status: planned}

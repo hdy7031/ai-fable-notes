@@ -183,8 +183,28 @@
       status.setAttribute("role", "status");
     }
   }
+  async function renderOcrDashboard() {
+    if (!document.getElementById("ocr-dashboard")) return;
+    const catalog = await catalogPromise;
+    const courses = catalog?.courses?.ocr;
+    if (!Array.isArray(courses)) {
+      document.getElementById("ocr-progress").textContent = "暂时无法加载进度，仍可通过目录阅读。";
+      return;
+    }
+    const published = courses.filter(item => item.published);
+    const completed = published.filter(isCompleted).length;
+    document.getElementById("ocr-progress").textContent = `已发布 ${published.length} 章 · 已完成 ${completed} 章 · 进度保存在当前浏览器`;
+    const { item, kind } = recommendation({ main: courses }, state);
+    if (item) {
+      const link = document.getElementById("ocr-continue");
+      link.href = new URL(item.url, siteBase).href;
+      link.textContent = `${kind === "pending" ? "查看待补录或规划" : kind === "complete" ? "回顾" : "继续学习"}：${item.title} →`;
+    }
+  }
+
   async function renderDashboard() {
     renderCourseStates();
+    await renderOcrDashboard();
     if (!document.getElementById("learning-dashboard") && !document.querySelector("[data-stage-id]")) return;
     const catalog = await catalogPromise;
     if (!catalog || !Array.isArray(catalog.lessons) || !Array.isArray(catalog.stages) || !Array.isArray(catalog.navigation?.main)) {
