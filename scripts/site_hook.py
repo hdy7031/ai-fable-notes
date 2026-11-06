@@ -7,7 +7,9 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from content import ROOT, load_lessons, load_plan
-from curriculum import MAIN_STAGES, MAIN_DESCRIPTION, ordered_stages, navigation_lessons, course_tracks, course_neighbors
+from curriculum import (MAIN_STAGES, APPLIED_STAGES, MAIN_DESCRIPTION, TRACK_STAGES,
+                        TRACK_TITLES, stage_track, ordered_stages, navigation_lessons,
+                        course_tracks, course_neighbors)
 from pasted_render import render_pasted
 from library_dates import library_dates
 from ocr_course import load_chapters, course_track, course_index, render_chapter
@@ -146,24 +148,47 @@ def _concept_link(concept_id, depth):
     if item:
         return f'<a href="{"../" * depth}{item["url"]}">{html.escape(_concept_title(item))}</a>'
     concept = known[concept_id]
-    return f'<a class="missing-link" href="{"../" * depth}generated/stages/{concept["stage"]}/#concept-{concept_id}">{html.escape(concept["title"])}（待补录）</a>'
+    status = '规划中' if concept['stage'] in APPLIED_STAGES else '待补录'
+    return f'<a class="missing-link" href="{"../" * depth}generated/stages/{concept["stage"]}/#concept-{concept_id}">{html.escape(concept["title"])}（{status}）</a>'
 
 
-def _stage_cards(prefix=""):
+def _stage_cards(prefix="", track="main"):
     cards = []
-    for index, stage in enumerate(PLAN["stages"], 1):
+    stages = [stage for stage in PLAN['stages'] if stage['id'] in TRACK_STAGES[track]]
+    for index, stage in enumerate(stages, 1):
         actual = [x for x in LESSONS if x["category"] == stage["id"]]
         total = len({c["id"] for c in stage["concepts"]} | {x["id"] for x in actual})
         future = total - len(actual)
         status = f'已发布 {len(actual)} 篇 · 未学习' if actual else f'未来计划 · {total} 个概念'
         cards.append(f'''<a class="stage-card{' stage-card--planned' if not actual else ''}" data-stage-id="{stage['id']}" href="{prefix}generated/stages/{stage['id']}/">
-<span class="stage-number">{'阶段' if stage['id'] in MAIN_STAGES else '支线'} {index if stage['id'] in MAIN_STAGES else index - len(MAIN_STAGES):02d}<span aria-hidden="true">↗</span></span>
+<span class="stage-number">阶段 {index:02d}<span aria-hidden="true">↗</span></span>
 <h3>{html.escape(stage['title'])}</h3><p>{html.escape(stage['description'])}</p>
 <span class="stage-status" data-stage-status>{status}</span>
 {f'<span class="stage-detail">{str(future) + " 个概念待发布" if future else "本阶段正文已齐全"}</span>' if actual else ''}
 {f'<progress data-stage-progress value="0" max="{len(actual)}" aria-label="{html.escape(stage["title"])}完成进度"></progress>' if actual else ''}
 </a>''')
-    return '<div class="stage-grid" id="stage-cards">' + "".join(cards) + '</div>'
+    return '<div class="stage-grid">' + "".join(cards) + '</div>'
+
+
+def _track_selector():
+    return '<label class="track-selector" hidden>学习路线 <select data-track-selector>' + ''.join(
+        f'<option value="{key}">{title}</option>' for key, title in TRACK_TITLES.items()
+    ) + '</select></label>'
+
+
+def _route_sections():
+    sections = []
+    for track, title in TRACK_TITLES.items():
+        detail = ''
+        if track == 'applied':
+            detail = '<p><a href="../../guide/applied/" data-select-track="applied">阅读应用进阶导读 →</a> · 18 个概念按计划逐篇发布。</p>'
+            for stage in PLAN['stages']:
+                if stage['id'] in APPLIED_STAGES:
+                    detail += f'<details><summary>{html.escape(stage["title"])} · 概念与前置知识</summary>{_course_rows(stage, depth=2)}</details>'
+        elif track == 'probability-statistics':
+            detail = '<p class="subtle">按需查阅；首页不会自动切换到此路线。历史正文仍可在文章库搜索。</p>'
+        sections.append(f'<section id="{track}" class="route-section"><div class="section-heading"><h2>{title}</h2><a href="#{track}" data-select-track="{track}">选择此路线 →</a></div>{_stage_cards("../../", track)}{detail}</section>')
+    return _track_selector() + ''.join(sections)
 
 
 def _recent():
@@ -180,19 +205,22 @@ def _home_dashboard():
     stage = next((s for s in PLAN["stages"] if first and s["id"] == first["category"]), None)
     return f'''<div id="learning-dashboard">
 <section class="continue-section" aria-labelledby="continue-heading">
-<div class="section-heading"><h2 id="continue-heading">继续学习</h2><span id="continue-reason">从主线起点开始</span></div>
+<div class="section-heading"><h2 id="continue-heading">继续学习</h2>{_track_selector()}</div>
 <div class="continue-card"><div class="continue-copy">
-<a id="continue-stage" class="eyebrow" href="generated/stages/{stage['id'] if stage else PLAN['stages'][0]['id']}/">{html.escape(stage['title']) if stage else '学习路线'}</a>
+<div class="continue-meta"><a id="continue-stage" class="eyebrow" href="generated/stages/{stage['id'] if stage else PLAN['stages'][0]['id']}/">{html.escape(stage['title']) if stage else '学习路线'}</a><span id="continue-reason">从第一课开始</span></div>
 <h3 id="continue-title">{html.escape(first['title']) + ('（待发布）' if not first['published'] else '') if first else '教材正在生长'}</h3>
 <p id="continue-story">{html.escape(first['story']) if first else '先看看学习计划，已发布正文会自动出现在这里。'}</p>
-<p id="continue-prerequisites" class="prerequisite-note">前置知识：无需前置，从这里开始。</p></div>
+<p id="continue-prerequisites" class="prerequisite-note" hidden></p></div>
 <a class="fable-primary" id="continue-reading" href="{first['url'] if first else 'generated/path/'}">{'开始阅读' if first and first['published'] else '查看待发布课程'} <span aria-hidden="true">→</span></a></div>
+<p id="applied-suggestion" class="subtle" hidden>基础主线已完成，可主动选择<a href="guide/applied/" data-select-track="applied">AI 应用进阶 →</a>。当前路线保持不变。</p>
 </section>
 <section class="progress-summary" aria-label="阅读进度">
-<div class="dashboard-stats"><div><strong id="total-count">{len(LESSONS)}</strong><span>已收录</span></div><div><strong id="completed-count">0</strong><span>已完成</span></div><div><strong id="progress-percent">0%</strong><span>阅读进度</span></div></div>
-<div class="progress-summary__track"><progress id="overall-progress" value="0" max="100" aria-label="整体阅读进度"></progress><p id="reading-status">每完成一篇，知识就连起一小段。</p></div>
+<div class="dashboard-stats"><div><strong id="total-count">{sum(c['published'] for c in NAVIGATION['main'])}</strong><span>本路线已发布</span></div><div><strong id="completed-count">0</strong><span>已完成</span></div><div><strong id="progress-percent">0%</strong><span>阅读进度</span></div></div>
+<div class="progress-summary__track"><progress id="overall-progress" value="0" max="100" aria-label="整体阅读进度"></progress><p id="reading-status" hidden></p></div>
 </section>
-<section aria-labelledby="stages-title"><div class="section-heading"><h2 id="stages-title">知识阶段</h2><a href="generated/path/">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">主线：{MAIN_DESCRIPTION}。概率与统计为独立支线。</p>{_stage_cards()}</section>
+<section aria-labelledby="stages-title"><div class="section-heading"><h2 id="stages-title">AI 基础主线</h2><a href="generated/path/#main" data-select-track="main">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">{MAIN_DESCRIPTION}。</p>{_stage_cards()}</section>
+<section class="route-section" aria-labelledby="applied-title"><div class="section-heading"><h2 id="applied-title">AI 应用进阶</h2><a href="guide/applied/" data-select-track="applied">阅读进阶导读 →</a></div><p class="section-description">应用工作流 → 现代视觉 → 大语言模型与多模态 → Agent 与工程系统。当前为第一期规划。</p>{_stage_cards(track='applied')}</section>
+<aside class="gap-note"><h2>按需参考</h2><p class="subtle">概率与统计资料用于补充概念、查阅公式和评估实验。</p><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">查看参考路线 →</a> · <a href="generated/library/">搜索历史文章 →</a></aside>
 <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
 </div>'''
 
@@ -235,7 +263,7 @@ def _library():
 </section>'''
 
 
-def _course_rows(stage):
+def _course_rows(stage, depth=3):
     known, gaps = _known(), _gaps()
     actual = [x for x in LESSONS if x["category"] == stage["id"]]
     concepts = [course for track in NAVIGATION.values() for course in track if course['category'] == stage['id']]
@@ -243,9 +271,9 @@ def _course_rows(stage):
     for index, concept in enumerate(concepts, 1):
         lesson = next((x for x in actual if x['id'] == concept['id']), None)
         title = html.escape(known[concept['id']]['title'])
-        heading = f'<a href="../../../{lesson["url"]}">{title}</a>' if lesson else title
-        status = '已发布 · 未学习' if lesson else '必要前置 · 待发布' if concept['id'] in gaps else '待发布 · 未来计划'
-        prerequisite_links = '、'.join(_concept_link(i, 3) for i in concept.get('prerequisites', [])) or '无需前置知识'
+        heading = f'<a href="{"../" * depth}{lesson["url"]}">{title}</a>' if lesson else title
+        status = '已发布 · 未学习' if lesson else '规划中 · 正文未发布' if stage['id'] in APPLIED_STAGES else '必要前置 · 待发布' if concept['id'] in gaps else '待发布 · 未来计划'
+        prerequisite_links = '、'.join(_concept_link(i, depth) for i in concept.get('prerequisites', [])) or '无需前置知识'
         rows.append(f'''<li id="concept-{concept['id']}" class="course-row{' course-row--planned' if not lesson else ''}" {f'data-course-id="{lesson["id"]}"' if lesson else ''}>
 <span class="course-order">{index:02d}</span><div><h3>{heading}</h3>{f'<p class="course-story">{html.escape(lesson["title"])}</p>' if lesson else ''}<p class="course-prerequisites">前置：{prerequisite_links}</p></div><span class="status-tag" {'data-course-status' if lesson else ''}>{status}</span></li>''')
     return '<ol class="course-list">' + ''.join(rows) + '</ol>'
@@ -261,22 +289,26 @@ def on_config(config):
     OCR_CHAPTERS = load_chapters(ROOT)
     generated = ROOT / 'docs/generated'
     gap_links = '、'.join(_concept_link(i, 2) for i in sorted(gaps, key=lambda i: known[i]['order'])) or '目前已发布课程的前置正文已齐全。'
-    route = f'<div class="route-summary"><strong>{len(LESSONS)} 篇已发布</strong><span>{len(known)} 个计划概念</span><span>完成状态随阅读同步</span></div>{_stage_cards("../../")}<section id="prerequisite-gaps" class="gap-note"><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
-    pages = {'path': _page('学习路线', f'主线：{MAIN_DESCRIPTION}。概率与统计作为独立支线，按需学习。', route)}
+    route = f'<div class="route-summary"><strong>{len(LESSONS)} 篇已发布</strong><span>{len(known)} 个计划概念</span><span>完成状态随阅读同步</span></div>{_route_sections()}<section id="prerequisite-gaps" class="gap-note"><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
+    pages = {'path': _page('学习路线', '基础与应用进阶分别学习，概率与统计按需参考。选择的路线会记在当前浏览器中，阅读其他路线的文章不会自动切换。', route)}
     pages['library'] = _page('文章库', '查找概念、重温故事、按需阅读。', _library())
     for name, title in (('domains', '知识领域'), ('chapters', '全部章节'), ('archive', '日期归档')):
         pages[name] = _page(title, '文章浏览已合并到统一文章库，可搜索、筛选阅读状态与领域，并切换排序。', '<a class="fable-primary" href="../library/">前往文章库 →</a>').replace('hide:\n', 'search:\n  exclude: true\nhide:\n', 1)
     pages['missing'] = _page('待补录清单', '前置缺口优先补录，其他概念保留在未来计划中。缺少正文时，只展示课程信息。', '<a class="back-link" href="../path/">← 返回学习路线</a>' + ''.join(f'<section class="library-section"><h2>{html.escape(s["title"])}</h2><ul>' + ''.join(f'<li>{_concept_link(c["id"], 2)} · {"必要前置缺口" if c["id"] in gaps else "未来计划"}</li>' for c in s['concepts'] if not any(x['id'] == c['id'] for x in LESSONS)) + '</ul></section>' for s in PLAN['stages'] if any(not any(x['id'] == c['id'] for x in LESSONS) for c in s['concepts'])))
     for name, text in pages.items():
         _write_if_changed(generated / f'{name}.md', text)
-    for index, stage in enumerate(PLAN['stages'], 1):
-        text = _page(stage['title'], html.escape(stage['description']), f'<a class="back-link" href="../../path/">← 全部学习路线</a><p class="subtle">阶段 {index:02d} · 已发布正文可直接阅读；前置待补录与未来计划不会链接到不存在的文章。</p>' + _course_rows(stage))
+    for stage in PLAN['stages']:
+        track = stage_track(stage['id'])
+        index = TRACK_STAGES[track].index(stage['id']) + 1
+        text = _page(stage['title'], html.escape(stage['description']), f'<a class="back-link" href="../../path/#{track}">← {TRACK_TITLES[track]}</a><p class="subtle">阶段 {index:02d} · 已发布正文可直接阅读；前置待补录与未来计划不会链接到不存在的文章。</p>' + _course_rows(stage))
         _write_if_changed(generated / 'stages' / f'{stage["id"]}.md', text)
     _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION, 'courses': {'ocr': course_track(ROOT)}}, ensure_ascii=False, indent=2))
     config['nav'] = [
         {'首页': 'index.md'},
         {'OCR 从零入门': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
-        {'学习路线': ['generated/path.md'] + [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages']] + [{'待补录清单': 'generated/missing.md'}]},
+        {'学习路线': ['generated/path.md', {'应用进阶导读': 'guide/applied.md'}] + [
+            {title: [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages'] if s['id'] in TRACK_STAGES[track]]}
+            for track, title in TRACK_TITLES.items()] + [{'待补录清单': 'generated/missing.md'}]},
         {'文章库': ['generated/library.md'] + [{s['title']: [{_concept_title(x): x['file']} for x in LESSONS if x['category'] == s['id']]} for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)]},
     ]
     return config

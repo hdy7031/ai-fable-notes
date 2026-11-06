@@ -1,0 +1,317 @@
+{
+  "main": [
+    {
+      "id": "vectors-and-matrices",
+      "category": "foundations",
+      "order": 1,
+      "url": "lessons/undated-vectors-and-matrices/"
+    },
+    {
+      "id": "matrix-multiplication",
+      "category": "foundations",
+      "order": 2,
+      "url": "lessons/undated-matrix-multiplication/"
+    },
+    {
+      "id": "linear-layer",
+      "category": "foundations",
+      "order": 3,
+      "url": "lessons/undated-linear-layer/"
+    },
+    {
+      "id": "perceptron",
+      "category": "foundations",
+      "order": 4,
+      "url": "lessons/undated-perceptron/"
+    },
+    {
+      "id": "mlp",
+      "category": "foundations",
+      "order": 5,
+      "url": "lessons/undated-mlp/"
+    },
+    {
+      "id": "activation-function",
+      "category": "foundations",
+      "order": 6,
+      "url": "lessons/undated-activation-function/"
+    },
+    {
+      "id": "forward-pass",
+      "category": "foundations",
+      "order": 7,
+      "url": "lessons/undated-forward-pass/"
+    },
+    {
+      "id": "tensor-shape",
+      "category": "foundations",
+      "order": 8,
+      "url": "lessons/2026-10-08-tensor-shape/"
+    },
+    {
+      "id": "loss",
+      "category": "training",
+      "order": 50,
+      "url": "lessons/undated-loss/"
+    },
+    {
+      "id": "derivative",
+      "category": "training",
+      "order": 60,
+      "url": "lessons/undated-derivative/"
+    },
+    {
+      "id": "partial-derivative-and-gradient",
+      "category": "training",
+      "order": 70,
+      "url": "lessons/undated-partial-derivative-and-gradient/"
+    },
+    {
+      "id": "chain-rule",
+      "category": "training",
+      "order": 80,
+      "url": "lessons/2026-10-09-chain-rule/"
+    },
+    {
+      "id": "computational-graph-and-backpropagation",
+      "category": "training",
+      "order": 90,
+      "url": "lessons/2026-10-10-computational-graph-and-backpropagation/"
+    },
+    {
+      "id": "gradient-descent",
+      "category": "training",
+      "order": 100,
+      "url": "lessons/2026-10-11-gradient-descent/"
+    },
+    {
+      "id": "mini-batch-sgd",
+      "category": "training",
+      "order": 101,
+      "url": "lessons/2026-10-12-mini-batch-sgd/"
+    },
+    {
+      "id": "adam-optimizer",
+      "category": "training",
+      "order": 102,
+      "url": "lessons/2026-10-13-adam-optimizer/"
+    },
+    {
+      "id": "train-val-test",
+      "category": "training",
+      "order": 103,
+      "url": "lessons/2026-10-14-train-val-test/"
+    },
+    {
+      "id": "overfitting",
+      "category": "training",
+      "order": 104,
+      "url": "lessons/2026-10-15-overfitting/"
+    },
+    {
+      "id": "regularization",
+      "category": "training",
+      "order": 105,
+      "url": "lessons/2026-10-16-regularization/"
+    },
+    {
+      "id": "convolution",
+      "category": "cnn",
+      "order": 9,
+      "url": "lessons/2026-10-08-convolution/"
+    },
+    {
+      "id": "receptive-field",
+      "category": "cnn",
+      "order": 10,
+      "url": "lessons/undated-receptive-field/"
+    },
+    {
+      "id": "stride-padding",
+      "category": "cnn",
+      "order": 11,
+      "url": "lessons/2026-10-08-stride-padding/"
+    },
+    {
+      "id": "pooling",
+      "category": "cnn",
+      "order": 20,
+      "url": "lessons/undated-pooling/"
+    },
+    {
+      "id": "parameters-and-flops",
+      "category": "cnn",
+      "order": 30,
+      "url": "lessons/undated-parameters-and-flops/"
+    },
+    {
+      "id": "cnn-classification",
+      "category": "cnn",
+      "order": 31,
+      "url": "lessons/2026-10-19-cnn-classification/"
+    },
+    {
+      "id": "residual-connection",
+      "category": "cnn",
+      "order": 32,
+      "url": "lessons/2026-10-21-residual-connection/"
+    },
+    {
+      "id": "relu",
+      "category": "cnn",
+      "order": 40,
+      "url": "lessons/2026-10-08-relu/"
+    },
+    {
+      "id": "rnn",
+      "category": "sequence-models",
+      "order": 260,
+      "url": "lessons/2026-10-22-rnn/"
+    },
+    {
+      "id": "lstm",
+      "category": "sequence-models",
+      "order": 270,
+      "url": "lessons/2026-10-23-lstm/"
+    },
+    {
+      "id": "attention",
+      "category": "sequence-models",
+      "order": 280,
+      "url": "lessons/2026-10-24-attention/"
+    },
+    {
+      "id": "self-attention",
+      "category": "sequence-models",
+      "order": 290,
+      "url": "lessons/2026-10-25-self-attention/"
+    },
+    {
+      "id": "transformer",
+      "category": "sequence-models",
+      "order": 300,
+      "url": "lessons/2026-10-26-transformer/"
+    },
+    {
+      "id": "positional-encoding",
+      "category": "sequence-models",
+      "order": 310,
+      "url": "lessons/2026-10-27-positional-encoding/"
+    },
+    {
+      "id": "vision-transformer",
+      "category": "sequence-models",
+      "order": 320,
+      "url": "lessons/2026-10-28-vision-transformer/"
+    },
+    {
+      "id": "ocr-pipeline",
+      "category": "ocr",
+      "order": 330,
+      "url": "lessons/2026-10-29-ocr-pipeline/"
+    },
+    {
+      "id": "ctc-loss",
+      "category": "ocr",
+      "order": 340,
+      "url": "lessons/2026-10-30-ctc-loss/"
+    },
+    {
+      "id": "encoder-decoder",
+      "category": "ocr",
+      "order": 350,
+      "url": "lessons/2026-10-31-encoder-decoder/"
+    },
+    {
+      "id": "document-understanding",
+      "category": "ocr",
+      "order": 360,
+      "url": "lessons/2026-11-01-document-understanding/"
+    }
+  ],
+  "probability-statistics": [
+    {
+      "id": "expectation-and-variance",
+      "category": "statistics",
+      "order": 110
+    },
+    {
+      "id": "law-of-large-numbers",
+      "category": "statistics",
+      "order": 120
+    },
+    {
+      "id": "central-limit-theorem",
+      "category": "statistics",
+      "order": 130
+    },
+    {
+      "id": "confidence-interval",
+      "category": "statistics",
+      "order": 140
+    },
+    {
+      "id": "hypothesis-testing",
+      "category": "statistics",
+      "order": 150
+    },
+    {
+      "id": "statistical-power",
+      "category": "statistics",
+      "order": 160,
+      "url": "lessons/undated-statistical-power/"
+    },
+    {
+      "id": "conditional-probability",
+      "category": "probability",
+      "order": 170,
+      "url": "lessons/undated-conditional-probability/"
+    },
+    {
+      "id": "bayes-theorem",
+      "category": "probability",
+      "order": 180,
+      "url": "lessons/undated-bayes-theorem/"
+    },
+    {
+      "id": "total-probability",
+      "category": "probability",
+      "order": 190,
+      "url": "lessons/undated-total-probability/"
+    },
+    {
+      "id": "probabilistic-model-parameters",
+      "category": "probabilistic-learning",
+      "order": 400,
+      "url": "lessons/2026-11-02-probabilistic-model-parameters/"
+    },
+    {
+      "id": "logarithm",
+      "category": "probabilistic-learning",
+      "order": 410,
+      "url": "lessons/2026-11-03-logarithm/"
+    },
+    {
+      "id": "likelihood-function",
+      "category": "probabilistic-learning",
+      "order": 420,
+      "url": "lessons/2026-11-04-likelihood-function/"
+    },
+    {
+      "id": "maximum-likelihood-estimation",
+      "category": "probabilistic-learning",
+      "order": 430,
+      "url": "lessons/2026-11-07-maximum-likelihood-estimation/"
+    },
+    {
+      "id": "softmax",
+      "category": "probabilistic-learning",
+      "order": 440
+    },
+    {
+      "id": "cross-entropy-loss",
+      "category": "probabilistic-learning",
+      "order": 450
+    }
+  ]
+}

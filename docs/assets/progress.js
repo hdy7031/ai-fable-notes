@@ -1,16 +1,19 @@
 (() => {
   "use strict";
-  function recommendation(navigation, state) {
+  const TRACK_TITLES = { main: "AI 基础主线", applied: "AI 应用进阶", "probability-statistics": "概率与统计参考资料" };
+  const validTrack = value => Object.hasOwn(TRACK_TITLES, value) ? value : "main";
+  function recommendation(navigation, state, selectedTrack = "main") {
     const completed = item => !!state.lessons[item.id]?.completed;
     const all = Object.values(navigation).flat();
-    const recent = all.find(item => item.id === state.lastRead?.id && item.published);
-    const track = recent ? Object.keys(navigation).find(key => navigation[key].includes(recent)) : "main";
+    const track = validTrack(selectedTrack);
     const courses = navigation[track] || [];
+    const recent = courses.find(item => item.id === state.lastRead?.id && item.published);
     if (recent && !completed(recent)) return { item: recent, kind: "resume", track };
-    const remaining = courses.filter(item => !completed(item));
+    const unfinished = item => !item.published || !completed(item);
+    const remaining = courses.filter(unfinished);
     if (!remaining.length) return { item: recent || courses[0], kind: "complete", track };
     const recentIndex = recent ? courses.indexOf(recent) : -1;
-    const candidate = courses.slice(recentIndex + 1).find(item => !completed(item)) || remaining[0];
+    const candidate = courses.slice(recentIndex + 1).find(unfinished) || remaining[0];
     const byId = new Map(all.map(item => [item.id, item]));
     function resolve(item, visited = new Set()) {
       if (!item.published) return { item, kind: "pending", track };
@@ -18,22 +21,17 @@
       const path = new Set(visited).add(item.id);
       const prerequisites = item.prerequisites.filter(id => !state.lessons[id]?.completed).map(id => {
         const prerequisite = byId.get(id);
+        if (prerequisite && !courses.includes(prerequisite)) return { item, kind: "prerequisites", track };
         return prerequisite ? resolve(prerequisite, path) : { item, kind: "blocked", track };
       });
       // A missing required body takes precedence; never substitute an unrelated course.
-      return prerequisites.find(result => result.kind === "pending" || result.kind === "blocked")
+      return prerequisites.find(result => ["pending", "blocked", "prerequisites"].includes(result.kind))
         || prerequisites[0] || { item, kind: "next", track };
     }
     return resolve(candidate);
   }
-  // Exercise the same production recommendation function without a browser or storage writes.
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = { recommendation };
-    return;
-  }
   const KEY = "ai-fable-notes.progress.v1";
-  const scriptUrl = document.currentScript.src;
-  const siteBase = new URL("../", scriptUrl);
+  const TRACK_KEY = "ai-fable-notes.track.v1";
   const empty = () => ({ version: 1, lessons: {}, lastRead: null });
   const validId = id => typeof id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id);
   function clean(value) {
@@ -46,6 +44,44 @@
     if (value.lastRead && validId(value.lastRead.id)) result.lastRead = { id: value.lastRead.id };
     return result;
   }
+  function mergeProgress(current, imported) {
+    const cleaned = clean(imported);
+    return { ...current, lessons: { ...current.lessons, ...cleaned.lessons }, lastRead: cleaned.lastRead || current.lastRead };
+  }
+  const courseReadingState = (state, course) => !course.published ? "planned"
+    : state.lessons[course.id]?.completed ? "completed"
+    : state.lessons[course.id] || state.lastRead?.id === course.id ? "reading" : "unread";
+  // Exercise production logic without a browser or storage writes.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { recommendation, clean, mergeProgress, courseReadingState, validTrack };
+    return;
+  }
+  const scriptUrl = document.currentScript.src;
+  const siteBase = new URL("../", scriptUrl);
+  let selectedTrack = "main";
+  const trackSelectors = [...document.querySelectorAll("[data-track-selector]")];
+  function syncTrackSelectors() {
+    trackSelectors.forEach(select => {
+      select.value = selectedTrack;
+      select.closest("label").hidden = false;
+    });
+  }
+  function chooseTrack(value) {
+    selectedTrack = validTrack(value);
+    try { localStorage.setItem(TRACK_KEY, selectedTrack); }
+    catch (_) { notify("路线选择暂时无法保存，刷新后会恢复基础主线。"); }
+    syncTrackSelectors();
+  }
+  try { selectedTrack = validTrack(localStorage.getItem(TRACK_KEY)); } catch (_) { /* default route */ }
+  syncTrackSelectors();
+  trackSelectors.forEach(select => select.addEventListener("change", () => {
+    chooseTrack(select.value);
+    renderDashboard().catch(catalogUnavailable);
+  }));
+  document.querySelectorAll("[data-select-track]").forEach(link => link.addEventListener("click", () => {
+    chooseTrack(link.dataset.selectTrack);
+    renderDashboard().catch(catalogUnavailable);
+  }));
   let state = empty();
   function notify(message) {
     let status = document.getElementById("storage-warning");
@@ -121,8 +157,7 @@
     document.addEventListener("visibilitychange", () => { if (document.hidden) saveScroll(); });
   }
   const isCompleted = item => !!state.lessons[item.id]?.completed;
-  const readingState = courseId => state.lessons[courseId]?.completed ? "completed"
-    : state.lessons[courseId] || state.lastRead?.id === courseId ? "reading" : "unread";
+  const readingState = courseId => courseReadingState(state, { id: courseId, published: true });
   function renderCourseStates() {
     document.querySelectorAll("[data-course-id], [data-library-id]").forEach(row => {
       const courseId = row.dataset.courseId || row.dataset.libraryId;
@@ -179,6 +214,7 @@
   function catalogUnavailable() {
     const status = document.getElementById("reading-status");
     if (status) {
+      status.hidden = false;
       status.textContent = "暂时无法更新个人推荐；仍可使用上方阅读入口、阶段路线与文章库。刷新可重试。";
       status.setAttribute("role", "status");
     }
@@ -222,14 +258,19 @@
       progress.value = done;
     });
     if (!document.getElementById("learning-dashboard")) return;
-    const completed = lessons.filter(isCompleted).length;
-    const percent = lessons.length ? Math.round(completed / lessons.length * 100) : 0;
-    document.getElementById("total-count").textContent = lessons.length;
+    const courses = catalog.navigation[selectedTrack] || [];
+    const published = courses.filter(item => item.published);
+    const completed = published.filter(isCompleted).length;
+    const percent = published.length ? Math.round(completed / published.length * 100) : 0;
+    document.getElementById("total-count").textContent = published.length;
     document.getElementById("completed-count").textContent = completed;
-    document.getElementById("progress-percent").textContent = percent + "%";
+    document.getElementById("progress-percent").textContent = published.length ? percent + "%" : "待发布";
     document.getElementById("overall-progress").value = percent;
-    document.getElementById("reading-status").textContent = completed ? `已连起 ${completed} 篇知识，按自己的节奏继续。` : "每完成一篇，知识就连起一小段。";
-    const { item, kind, track } = recommendation(catalog.navigation, state);
+    document.getElementById("overall-progress").hidden = !published.length;
+    document.getElementById("reading-status").hidden = !!published.length;
+    document.getElementById("reading-status").textContent = !published.length ? "正文尚未发布，暂不计算阅读进度。" : "";
+    const { item, kind } = recommendation(catalog.navigation, state, selectedTrack);
+    document.getElementById("applied-suggestion").hidden = !(selectedTrack === "main" && kind === "complete" && courses.length);
     const continueLink = document.getElementById("continue-reading");
     if (!item) {
       document.getElementById("continue-title").textContent = "教材正在生长";
@@ -242,8 +283,7 @@
     const concepts = new Map(catalog.stages.flatMap(stage => stage.concepts.map(concept => [concept.id, { ...concept, stage: stage.id }])));
     const title = concepts.get(item.id)?.title || item.title;
     const reason = document.getElementById("continue-reason");
-    const trackLabel = track === "main" ? "主线" : "概率与统计支线";
-    reason.textContent = kind === "resume" ? "回到上次未读完的课程" : kind === "pending" ? `${trackLabel}课程待发布` : kind === "blocked" ? "等待必要的前置知识" : kind === "complete" ? `${trackLabel}课程已完成，随时回顾` : completed ? `沿着${trackLabel}，继续下一课` : "从主线起点开始";
+    reason.textContent = kind === "resume" ? "接着上次阅读" : kind === "pending" ? "规划中" : kind === "prerequisites" ? "建议先查阅前置知识" : kind === "blocked" ? "等待前置知识" : kind === "complete" ? "本路线已完成" : completed ? "下一课" : "从第一课开始";
     const stageLink = document.getElementById("continue-stage");
     stageLink.textContent = stage?.title || "学习路线";
     stageLink.href = new URL(`generated/stages/${item.category}/`, siteBase).href;
@@ -252,8 +292,8 @@
     continueLink.href = new URL(kind === "blocked" ? "generated/path/#prerequisite-gaps" : item.url, siteBase).href;
     continueLink.textContent = kind === "resume" ? "继续阅读 →" : kind === "pending" ? "查看待发布课程 →" : kind === "blocked" ? "查看学习路线 →" : kind === "complete" ? "回顾这一篇 →" : completed ? "阅读下一课 →" : "开始阅读 →";
     const prerequisites = document.getElementById("continue-prerequisites");
+    prerequisites.hidden = !item.prerequisites.length;
     prerequisites.replaceChildren(document.createTextNode("前置知识："));
-    if (!item.prerequisites.length) prerequisites.append(document.createTextNode("无需前置，从这里开始。"));
     item.prerequisites.forEach((id, index) => {
       if (index) prerequisites.append(document.createTextNode("、"));
       const prerequisite = lessons.find(lesson => lesson.id === id);
@@ -276,9 +316,7 @@
     if (!file) return;
     try {
       if (file.size > 2000000) throw new Error("文件过大");
-      const imported = clean(JSON.parse(await file.text()));
-      state.lessons = { ...state.lessons, ...imported.lessons };
-      state.lastRead = imported.lastRead || state.lastRead;
+      state = mergeProgress(state, JSON.parse(await file.text()));
       status.textContent = save() ? "已合并进度，并保存在当前浏览器。" : "已合并，但保存失败，请导出备份。";
       renderToggle();
       await renderDashboard();
@@ -288,6 +326,8 @@
   window.addEventListener("pageshow", event => {
     if (!event.persisted) return;
     try {
+      selectedTrack = validTrack(localStorage.getItem(TRACK_KEY));
+      syncTrackSelectors();
       const saved = localStorage.getItem(KEY);
       state = saved ? clean(JSON.parse(saved)) : empty();
       if (id) {
@@ -300,6 +340,11 @@
     } catch (_) { notify("无法更新本地进度，请检查浏览器存储设置。"); }
   });
   window.addEventListener("storage", event => {
+    if (event.key === TRACK_KEY || event.key === null) {
+      selectedTrack = validTrack(event.key === null ? null : event.newValue);
+      syncTrackSelectors();
+      renderDashboard().catch(catalogUnavailable);
+    }
     if (event.key !== KEY) return;
     try {
       state = event.newValue ? clean(JSON.parse(event.newValue)) : empty();

@@ -84,3 +84,37 @@ stages:
       - {id: conditional-probability, title: 条件概率, order: 170, prerequisites: []}
       - {id: bayes-theorem, title: 贝叶斯定理, order: 180, prerequisites: [conditional-probability]}
       - {id: total-probability, title: 全概率公式, order: 190, prerequisites: [bayes-theorem]}
+  - id: applied-workflow
+    title: AI 应用工作流
+    description: 从真实问题、可靠数据和基线出发，建立可验证的实验流程
+    concepts:
+      - {id: problem-framing-and-baseline, title: 问题定义与基线, order: 500, prerequisites: [train-val-test, overfitting]}
+      - {id: data-quality-and-leakage, title: 数据质量与数据泄漏, order: 510, prerequisites: [problem-framing-and-baseline]}
+      - {id: transfer-learning-and-finetuning, title: 迁移学习与微调, order: 520, prerequisites: [data-quality-and-leakage, gradient-descent, cnn-classification]}
+      - {id: metrics-and-error-analysis, title: 评估指标与错误分析, order: 530, prerequisites: [transfer-learning-and-finetuning, loss]}
+      - {id: ablation-and-reproducibility, title: 消融实验与可复现性, order: 540, prerequisites: [metrics-and-error-analysis]}
+  - id: modern-vision
+    title: 现代视觉技术
+    description: 理解检测、分割与图像检索的数据流和选型依据
+    concepts:
+      - {id: object-detection-yolo, title: 目标检测与 YOLO, order: 600, prerequisites: [ablation-and-reproducibility, cnn-classification]}
+      - {id: image-segmentation, title: 图像分割, order: 610, prerequisites: [object-detection-yolo]}
+      - {id: image-embeddings-and-retrieval, title: 图像向量与检索, order: 620, prerequisites: [image-segmentation, vectors-and-matrices]}
+      - {id: clip-and-contrastive-learning, title: CLIP 与对比学习, order: 630, prerequisites: [image-embeddings-and-retrieval, transformer]}
+  - id: llm-multimodal
+    title: 大语言模型与多模态
+    description: 从文本表示与训练过程，走向知识检索、多模态理解和可靠评估
+    concepts:
+      - {id: tokens-and-embeddings, title: Token 与嵌入表示, order: 700, prerequisites: [transformer, ablation-and-reproducibility]}
+      - {id: pretraining-and-instruction-tuning, title: 预训练与指令微调, order: 710, prerequisites: [tokens-and-embeddings, transfer-learning-and-finetuning]}
+      - {id: rag, title: 检索增强生成 RAG, order: 720, prerequisites: [pretraining-and-instruction-tuning, image-embeddings-and-retrieval]}
+      - {id: vision-language-models, title: 视觉语言模型, order: 730, prerequisites: [rag, clip-and-contrastive-learning]}
+      - {id: hallucinations-and-evaluation, title: 幻觉与大模型评估, order: 740, prerequisites: [vision-language-models, metrics-and-error-analysis]}
+  - id: agent-systems
+    title: Agent 与工程系统
+    description: 组织工具、状态与服务，通过测量验证系统的可靠性和效率
+    concepts:
+      - {id: tool-calling-and-workflows, title: 工具调用与工作流, order: 800, prerequisites: [hallucinations-and-evaluation]}
+      - {id: agent-state-and-orchestration, title: Agent 状态与编排, order: 810, prerequisites: [tool-calling-and-workflows]}
+      - {id: model-export-and-serving, title: 模型导出与服务化, order: 820, prerequisites: [agent-state-and-orchestration, transfer-learning-and-finetuning]}
+      - {id: latency-throughput-and-quantization, title: 延迟、吞吐与量化, order: 830, prerequisites: [model-export-and-serving, parameters-and-flops]}

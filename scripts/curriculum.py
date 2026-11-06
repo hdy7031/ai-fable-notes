@@ -2,11 +2,25 @@
 
 MAIN_STAGES = ("foundations", "training", "cnn", "sequence-models", "ocr")
 BRANCH_STAGES = ("statistics", "probability", "probabilistic-learning")
+APPLIED_STAGES = (
+    "applied-workflow",
+    "modern-vision",
+    "llm-multimodal",
+    "agent-systems",
+)
 MAIN_DESCRIPTION = "神经网络基础 → 训练机制 → CNN → 序列模型与 Transformer → OCR"
+TRACK_STAGES = {"main": MAIN_STAGES, "applied": APPLIED_STAGES,
+                "probability-statistics": BRANCH_STAGES}
+TRACK_TITLES = {"main": "AI 基础主线", "applied": "AI 应用进阶",
+                "probability-statistics": "概率与统计参考资料"}
+
+
+def stage_track(stage_id):
+    return next(track for track, stages in TRACK_STAGES.items() if stage_id in stages)
 
 
 def ordered_stages(plan):
-    ranks = {stage_id: index for index, stage_id in enumerate(MAIN_STAGES + BRANCH_STAGES)}
+    ranks = {stage_id: index for index, stage_id in enumerate(MAIN_STAGES + APPLIED_STAGES + BRANCH_STAGES)}
     return sorted(plan["stages"], key=lambda stage: ranks.get(stage["id"], len(ranks)))
 
 
@@ -18,14 +32,14 @@ def navigation_lessons(plan, lessons):
 
 def course_tracks(plan, lessons):
     """Include unpublished concepts so navigation cannot silently skip a gap."""
-    tracks = {"main": [], "probability-statistics": []}
+    tracks = {track: [] for track in TRACK_STAGES}
     for stage in ordered_stages(plan):
         actual = {lesson["id"]: lesson for lesson in lessons if lesson["category"] == stage["id"]}
         concepts = {concept["id"]: concept for concept in stage["concepts"]}
         concepts.update({concept_id: dict(concepts.get(concept_id, {}), **lesson)
                          for concept_id, lesson in actual.items()})
         titles = {concept["id"]: concept["title"] for concept in stage["concepts"]}
-        track = "main" if stage["id"] in MAIN_STAGES else "probability-statistics"
+        track = stage_track(stage["id"])
         for concept in sorted(concepts.values(), key=lambda item: (item["order"], item["id"])):
             lesson = actual.get(concept["id"])
             tracks[track].append(dict(

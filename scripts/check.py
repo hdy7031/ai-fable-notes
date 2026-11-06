@@ -12,10 +12,113 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from content import ROOT, compose, load_lessons, load_plan, privacy_check, publish
-from curriculum import MAIN_STAGES, ordered_stages, navigation_lessons, course_tracks, course_neighbors
+from curriculum import (MAIN_STAGES, BRANCH_STAGES, APPLIED_STAGES, TRACK_STAGES,
+                        ordered_stages, navigation_lessons, course_tracks, course_neighbors)
 
 
 class NavigationChecks(unittest.TestCase):
+    def test_tracks_preserve_legacy_courses_and_order(self):
+        plan, lessons = load_plan(), load_lessons()
+        tracks = course_tracks(plan, lessons)
+        self.assertEqual(list(tracks), ['main', 'applied', 'probability-statistics'])
+        self.assertEqual(MAIN_STAGES, ('foundations', 'training', 'cnn', 'sequence-models', 'ocr'))
+        self.assertEqual(BRANCH_STAGES, ('statistics', 'probability', 'probabilistic-learning'))
+        legacy = json.loads((ROOT / 'scripts/fixtures/legacy-navigation.json').read_text(encoding='utf-8'))
+        for track, expected in legacy.items():
+            self.assertEqual([{key: course[key] for key in reference}
+                              for course, reference in zip(tracks[track], expected)], expected)
+            self.assertEqual(len(tracks[track]), len(expected))
+        self.assertEqual(len(tracks['main']), 38)
+        self.assertEqual(len(tracks['probability-statistics']), 15)
+        ids = [course['id'] for courses in tracks.values() for course in courses]
+        self.assertEqual(len(ids), len(set(ids)))
+        for track, stages in TRACK_STAGES.items():
+            self.assertEqual(list(dict.fromkeys(c['category'] for c in tracks[track])), list(stages))
+            for stage in stages:
+                orders = [c['order'] for c in tracks[track] if c['category'] == stage]
+                self.assertEqual(orders, sorted(orders))
+            self.assertIsNone(course_neighbors(tracks, tracks[track][0]['id'])[0])
+            self.assertIsNone(course_neighbors(tracks, tracks[track][-1]['id'])[1])
+
+    def test_applied_plan_references_and_planned_surfaces(self):
+        import site_hook
+        plan, lessons = load_plan(), load_lessons()
+        # Keep the planned-state fixture valid as daily articles are published.
+        lessons = [lesson for lesson in lessons if lesson['category'] not in APPLIED_STAGES]
+        tracks = course_tracks(plan, lessons)
+        expected = [
+            (500, 'problem-framing-and-baseline'), (510, 'data-quality-and-leakage'),
+            (520, 'transfer-learning-and-finetuning'), (530, 'metrics-and-error-analysis'),
+            (540, 'ablation-and-reproducibility'), (600, 'object-detection-yolo'),
+            (610, 'image-segmentation'), (620, 'image-embeddings-and-retrieval'),
+            (630, 'clip-and-contrastive-learning'), (700, 'tokens-and-embeddings'),
+            (710, 'pretraining-and-instruction-tuning'), (720, 'rag'),
+            (730, 'vision-language-models'), (740, 'hallucinations-and-evaluation'),
+            (800, 'tool-calling-and-workflows'), (810, 'agent-state-and-orchestration'),
+            (820, 'model-export-and-serving'), (830, 'latency-throughput-and-quantization'),
+        ]
+        self.assertEqual([(c['order'], c['id']) for c in tracks['applied']], expected)
+        concepts = {c['id']: c for stage in plan['stages'] for c in stage['concepts']}
+        self.assertEqual(len(concepts), 71)
+        self.assertEqual(len({c['order'] for c in concepts.values()}), len(concepts))
+        for lesson in lessons:
+            self.assertFalse(any(c['order'] == lesson['order'] and c['id'] != lesson['id'] for c in tracks['applied']))
+        def visit(concept_id, ancestors=()):
+            self.assertNotIn(concept_id, ancestors, '前置知识不能成环')
+            for ref in concepts[concept_id]['prerequisites']:
+                self.assertIn(ref, concepts)
+                visit(ref, ancestors + (concept_id,))
+        for concept_id in concepts:
+            visit(concept_id)
+        with patch.multiple(site_hook, LESSONS=lessons, PLAN=dict(plan, stages=ordered_stages(plan)), NAVIGATION=tracks):
+            route = site_hook._route_sections()
+            home = site_hook._home_dashboard()
+            for course in tracks['applied']:
+                self.assertIn('concept-' + course['id'], route)
+                self.assertFalse(course['published'])
+                self.assertNotIn('lessons/', course['url'])
+                self.assertNotIn('data-course-id="' + course['id'] + '"', route)
+                self.assertIn('#concept-' + course['id'], course['url'])
+            self.assertIn('规划中 · 正文未发布', route)
+            self.assertNotIn('data-stage-id="statistics"', home)
+            self.assertIn('data-stage-id="applied-workflow"', home)
+            self.assertIn('id="applied-suggestion"', home)
+            self.assertNotIn('data-stage-progress', site_hook._stage_cards(track='applied'))
+
+    def test_applied_publication_updates_catalog_without_placeholder(self):
+        import site_hook
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(ROOT / 'data', root / 'data')
+            (root / 'docs/lessons').mkdir(parents=True)
+            for lesson in load_lessons():
+                if lesson['category'] not in APPLIED_STAGES:
+                    shutil.copyfile(ROOT / 'docs' / lesson['file'], root / 'docs' / lesson['file'])
+            before = load_lessons(root)
+            stage = next(s for s in load_plan(root)['stages'] if s['id'] == APPLIED_STAGES[0])
+            concept = stage['concepts'][0]
+            candidate = root / 'candidate.md'
+            candidate.write_text(compose(dict(concept, category=stage['id'], date='2026-11-08', next_concepts=[]),
+                                         '仅用于测试发布状态的合成正文。'), encoding='utf-8')
+            publish(candidate, root)
+            lessons = load_lessons(root)
+            self.assertEqual(len(lessons), len(before) + 1)
+            with patch.multiple(site_hook, ROOT=root, load_lessons=lambda: lessons, load_plan=lambda: load_plan(root)):
+                site_hook.on_config({})
+                rows = site_hook._course_rows(stage)
+            catalog = json.loads((root / 'docs/assets/catalog.json').read_text(encoding='utf-8'))
+            courses = catalog['navigation']['applied']
+            self.assertTrue(courses[0]['published'])
+            self.assertTrue(courses[0]['url'].startswith('lessons/'))
+            self.assertFalse(courses[1]['published'])
+            self.assertIn('data-course-id="problem-framing-and-baseline"', rows)
+            self.assertNotIn('data-course-id="data-quality-and-leakage"', rows)
+            self.assertIn('已发布 · 未学习', rows)
+            self.assertIn('规划中 · 正文未发布', rows)
+            library = (root / 'docs/generated/library.md').read_text(encoding='utf-8')
+            self.assertIn('data-library-id="problem-framing-and-baseline"', library)
+            self.assertNotIn('data-library-id="data-quality-and-leakage"', library)
+
     def test_navigation_order_preserves_metadata(self):
         lessons, plan = load_lessons(), load_plan()
         original = copy.deepcopy((lessons, plan))
