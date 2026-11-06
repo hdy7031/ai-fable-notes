@@ -1,10 +1,89 @@
-title: OCR 从零入门
+title: OCR 与文档智能系统：从零理解、模型选型到工程交付
+next_chapter: ocr-dbnet
+parts:
+  - {id: ocr-part-1, title: 第一篇：从图像到文字}
+  - {id: ocr-part-2, title: 第二篇：从文字到文档结构}
+  - {id: ocr-part-3, title: 第三篇：多模态文档智能}
+  - {id: ocr-part-4, title: 第四篇：从算法实验到业务交付}
+modules:
+  - id: ocr-module-01
+    title: OCR 系统全貌与基础表示
+    part: ocr-part-1
+    prerequisites: []
+    lessons: [图像、像素、RGB 与张量, 页面坐标、bbox、polygon 与 OCR 输入输出, 扫描 PDF 与原生 PDF]
+    practice: 拆解一张文档图片的输入输出，核对文字框、文本和页面坐标。
+  - id: ocr-module-02
+    title: 传统图像处理与 OCR 方法
+    part: ocr-part-1
+    prerequisites: [ocr-module-01]
+    lessons: [灰度、阈值与 Otsu, 形态学、连通域、投影与霍夫变换, 字符切分、模板匹配与传统 OCR]
+    practice: 用 OpenCV 比较清晰扫描图与复杂背景图中的文字区域。
+  - id: ocr-module-03
+    title: 现代视觉模型必需基础
+    part: ocr-part-1
+    prerequisites: [ocr-module-01]
+    lessons: [卷积、特征图与感受野, Loss、梯度与反向传播, CNN 与 ResNet, FPN、多尺度特征与 Attention]
+    practice: 手算小矩阵卷积，观察多尺度特征怎样服务于文字定位。
+  - id: ocr-module-04
+    title: 文字检测 Text Detection
+    part: ocr-part-1
+    prerequisites: [ocr-module-02, ocr-module-03]
+    lessons: [从传统区域定位到 CTPN、EAST 与 CRAFT, DBNet 的概率图、阈值图与可微分二值化, 检测框、裁剪、IoU 与漏检分析]
+    practice: 对比检测裁剪与人工标注裁剪，分析定位误差如何传到识别阶段。
+  - id: ocr-module-05
+    title: 文字识别 Text Recognition / STR
+    part: ocr-part-1
+    prerequisites: [ocr-module-03, ocr-module-04]
+    lessons: [从字符切分到 CRNN 与 CTC, Attention、SVTR 与 LightSVTR 的设计思路, 文本序列解码与识别错误分析]
+    practice: 手推一次 CTC 解码，逐字核对识别结果和裁剪图。
+  - id: ocr-module-06
+    title: 场景文字与工业 OCR
+    part: ocr-part-1
+    prerequisites: [ocr-module-04, ocr-module-05]
+    lessons: [方向、透视、曲面文字与矫正, 反光、遮挡、小字符与低对比度, 工业喷码与字符印刷质量检测]
+    practice: 比较原图、矫正图与裁剪策略，分别判断字符内容和印刷质量。
+  - id: ocr-module-07
+    title: 文档版面分析 Layout Analysis
+    part: ocr-part-2
+    prerequisites: [ocr-module-04, ocr-module-05]
+    lessons: [投影、XY-Cut 与规则分块, 版面检测、区域归属与多栏阅读顺序, PP-Structure 等模块化文档解析流程]
+    practice: 将含标题、正文、印章与表格的页面解析为有顺序的区域。
+  - id: ocr-module-08
+    title: 表格检测、结构恢复与内容匹配
+    part: ocr-part-2
+    prerequisites: [ocr-module-07]
+    lessons: [表格线、行列聚类与单元格图结构, SLANet、SLANeXt 与 HTML 结构预测, 坐标匹配、合并单元格与 TEDS]
+    practice: 将有线、无线和合并单元格表格恢复为 HTML/JSON，区分结构与文字错误。
+  - id: ocr-module-09
+    title: 多页文档处理与信息抽取
+    part: ocr-part-2
+    prerequisites: [ocr-module-07, ocr-module-08]
+    lessons: [文书分类、跨页切分与附件识别, 规则、NER 与关键信息抽取, 字段定位、上下文与证据关联]
+    practice: 用脱敏或公开样本拆分多页文书，并提取文种、日期和文号。
+  - id: ocr-module-10
+    title: 专用模型、VLM、LLM、RAG 与 Agent
+    part: ocr-part-3
+    prerequisites: [ocr-module-07, ocr-module-08, ocr-module-09]
+    lessons: [视觉编码、Token 与语言生成, OCR-free、OCR-enhanced 与版面加 VLM, PaddleOCR-VL、PP-ChatOCR 与代表性方法, RAG、Agent、工具协作与证据核验]
+    practice: 按任务比较规则、OCR、VLM 与 Agent 候选方案，核查生成结果的字段来源。
+  - id: ocr-module-11
+    title: 数据、模型训练与评估
+    part: ocr-part-4
+    prerequisites: [ocr-module-03]
+    lessons: [采集、标注、去重与数据集划分, 预训练、微调、Loss 与超参数, CER、Hmean、TEDS、字段 F1 与端到端错误分解]
+    practice: 阅读真实 PaddleOCR 配置和实验记录，区分训练指标与业务指标。
+  - id: ocr-module-12
+    title: 系统设计、模型选型与部署
+    part: ocr-part-4
+    prerequisites: [ocr-module-06, ocr-module-09, ocr-module-10, ocr-module-11]
+    lessons: [输入、目标、候选技术与真实数据验证, 模型导出、CPU/GPU、ONNX 与容器, API、批量任务、数据库与人工审核, 权限、性能、错误追溯与反馈]
+    practice: 设计最小文档识别系统，验证上传、解析、复核和结构化输出。
 chapters:
-  - {id: ocr-pixels-rgb, title: 图像像素与 RGB, order: 1, status: pending}
-  - {id: ocr-convolution-features, title: 卷积与特征, order: 2, status: pending}
-  - {id: ocr-training, title: 神经网络训练机制, order: 3, status: pending}
-  - {id: ocr-cnn-structure, title: CNN 完整结构, order: 4, status: pending}
-  - {id: ocr-dbnet, title: DBNet：文字检测, order: 5, status: planned}
-  - {id: ocr-crnn-ctc, title: CRNN / CTC：文字识别, order: 6, status: planned}
-  - {id: ocr-paddleocr, title: PaddleOCR 实战, order: 7, status: planned}
-  - {id: ocr-document-intelligence, title: 文档智能, order: 8, status: planned}
+  - {id: ocr-pixels-rgb, title: 图像像素与 RGB, module: ocr-module-01, order: 100, status: pending}
+  - {id: ocr-convolution-features, title: 卷积与特征, module: ocr-module-03, order: 300, status: pending}
+  - {id: ocr-training, title: 神经网络训练机制, module: ocr-module-03, order: 310, status: pending}
+  - {id: ocr-cnn-structure, title: CNN 完整结构, module: ocr-module-03, order: 320, status: pending}
+  - {id: ocr-dbnet, title: 从传统文字检测到 DBNet：计算机究竟怎样找到图像中的文字？, module: ocr-module-04, order: 400, status: planned}
+  - {id: ocr-crnn-ctc, title: CRNN / CTC：文字识别, module: ocr-module-05, order: 500, status: planned}
+  - {id: ocr-document-intelligence, title: 文档智能, module: ocr-module-10, order: 1000, status: planned}
+  - {id: ocr-paddleocr, title: PaddleOCR 实战, module: ocr-module-11, order: 1100, status: planned}

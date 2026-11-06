@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from content import ROOT, split_markdown
-from ocr_course import course_index, course_track
+from ocr_course import course_index, course_track, load_course
 
 
 class OcrChecks(unittest.TestCase):
@@ -108,6 +108,25 @@ class OcrChecks(unittest.TestCase):
                 self.assertNotEqual(self.run_import(root, source, manifest).returncode, 0)
                 self.assertEqual(list((root / 'docs/ocr/chapters').glob('*.md')), [])
                 self.assertEqual(list((root / '.private/ocr/receipts').glob('*.json')), [])
+
+    def test_module_dependencies_and_legacy_anchors(self):
+        course = load_course()
+        self.assertEqual(len(course['parts']), 4)
+        self.assertEqual(len(course['modules']), 12)
+        index = course_index()
+        for chapter_id in ('ocr-pixels-rgb', 'ocr-convolution-features', 'ocr-training',
+                           'ocr-cnn-structure', 'ocr-dbnet', 'ocr-crnn-ctc',
+                           'ocr-paddleocr', 'ocr-document-intelligence'):
+            self.assertIn('{#' + chapter_id + '}', index)
+        self.assertEqual(course['next_chapter'], 'ocr-dbnet')
+        with tempfile.TemporaryDirectory() as directory:
+            import yaml
+            root = Path(directory)
+            (root / 'data').mkdir()
+            course['modules'][0]['prerequisites'] = ['ocr-module-12']
+            (root / 'data/ocr-course.yml').write_text(yaml.safe_dump(course), encoding='utf-8')
+            with self.assertRaises(ValueError):
+                load_course(root)
 
     def test_title_filter_before_branch_and_scan_hash(self):
         with tempfile.TemporaryDirectory() as directory:

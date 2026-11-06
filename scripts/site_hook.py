@@ -305,7 +305,7 @@ def on_config(config):
     _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION, 'courses': {'ocr': course_track(ROOT)}}, ensure_ascii=False, indent=2))
     config['nav'] = [
         {'首页': 'index.md'},
-        {'OCR 从零入门': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
+        {'OCR 与文档智能': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
         {'学习路线': ['generated/path.md', {'应用进阶导读': 'guide/applied.md'}] + [
             {title: [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages'] if s['id'] in TRACK_STAGES[track]]}
             for track, title in TRACK_TITLES.items()] + [{'待补录清单': 'generated/missing.md'}]},

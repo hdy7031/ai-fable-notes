@@ -12,7 +12,7 @@ hide:
     <nav class="hero-links" aria-label="探索教材">
       <a href="generated/path/#main" data-select-track="main">AI 基础主线 <span aria-hidden="true">↗</span></a>
       <a href="guide/applied/" data-select-track="applied">AI 应用进阶 <span aria-hidden="true">↗</span></a>
-      <a href="ocr/">OCR 从零入门 <span aria-hidden="true">↗</span></a>
+      <a href="ocr/">OCR 与文档智能 <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
   <!-- HOME_DASHBOARD -->
