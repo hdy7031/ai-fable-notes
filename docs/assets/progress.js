@@ -198,7 +198,7 @@
     if (item) {
       const link = document.getElementById("ocr-continue");
       link.href = new URL(item.url, siteBase).href;
-      link.textContent = `${kind === "pending" ? "查看待补录或规划" : kind === "complete" ? "回顾" : "继续学习"}：${item.title} →`;
+      link.textContent = `${kind === "pending" ? "查看待补录或待学习" : kind === "complete" ? "回顾" : "继续学习"}：${item.title} →`;
     }
   }
 

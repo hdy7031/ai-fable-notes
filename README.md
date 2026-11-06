@@ -32,9 +32,9 @@ python -m venv .venv
 
 `.private/`、`exports/`、`imports/`、`conversations.json` 和 ZIP 都被忽略。原始聊天仅供本地读取，公开仓库只应包含审核过的教学 Markdown。不要使用 `git add -f` 绕过隐私目录保护。
 
-## OCR 从零入门
+## OCR 与文档智能
 
-独立课程入口：https://hdy7031.github.io/ai-fable-notes/ocr/ 。课程计划在 `data/ocr-course.yml`，审核后的完整正文在 `docs/ocr/chapters/`。前四章等待完整教学原文，后四章仅列未来规划；状态由实际正文存在与否决定，不能手动假报已发布。
+独立课程入口：https://hdy7031.github.io/ai-fable-notes/ocr/ 。课程计划在 `data/ocr-course.yml`，审核后的完整正文在 `docs/ocr/chapters/`。《OCR 与文档智能系统：从零理解、模型选型到工程交付》按四篇、12 个模块组织，每个模块规划 2–4 节课时并标明前置依赖。原有 8 个章节 ID 保留，四章历史教学等待完整原文，其余内容显示待学习；仅有真实正文才计入已发布。下一课为《从传统文字检测到 DBNet：计算机究竟怎样找到图像中的文字？》。
 
 OCR 共享 Markdown、公式、搜索与浏览器进度，使用 `ocr-` 开头的稳定 ID，课程路线与寓言路线分别展示。原有文章组织、URL、学习计划和每日任务不变。多轮导入复用 `scripts/import_chatgpt.py`，见 [OCR 导入说明](docs/guide/ocr-import.md)。私有来源、哈希和选择清单保留在 `.private/ocr/`；不把完整对话提交到公开仓库或 Obsidian。
 

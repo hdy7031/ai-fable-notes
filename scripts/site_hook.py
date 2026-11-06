@@ -275,7 +275,7 @@ def on_config(config):
     _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION, 'courses': {'ocr': course_track(ROOT)}}, ensure_ascii=False, indent=2))
     config['nav'] = [
         {'首页': 'index.md'},
-        {'OCR 从零入门': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
+        {'OCR 与文档智能': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
         {'学习路线': ['generated/path.md'] + [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages']] + [{'待补录清单': 'generated/missing.md'}]},
         {'文章库': ['generated/library.md'] + [{s['title']: [{_concept_title(x): x['file']} for x in LESSONS if x['category'] == s['id']]} for s in PLAN['stages'] if any(x['category'] == s['id'] for x in LESSONS)]},
     ]
