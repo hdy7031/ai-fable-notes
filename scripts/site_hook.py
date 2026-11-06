@@ -171,7 +171,7 @@ def _stage_cards(prefix="", track="main"):
 
 
 def _track_selector():
-    return '<label class="track-selector" hidden>学习路线 <select data-track-selector>' + ''.join(
+    return '<label class="track-selector" hidden>学习路线 <select data-track-selector><option value="overview">总览</option>' + ''.join(
         f'<option value="{key}">{title}</option>' for key, title in TRACK_TITLES.items()
     ) + '</select></label>'
 
@@ -187,8 +187,9 @@ def _route_sections():
                     detail += f'<details><summary>{html.escape(stage["title"])} · 概念与前置知识</summary>{_course_rows(stage, depth=2)}</details>'
         elif track == 'probability-statistics':
             detail = '<p class="subtle">按需查阅；首页不会自动切换到此路线。历史正文仍可在文章库搜索。</p>'
-        sections.append(f'<section id="{track}" class="route-section"><div class="section-heading"><h2>{title}</h2><a href="#{track}" data-select-track="{track}">选择此路线 →</a></div>{_stage_cards("../../", track)}{detail}</section>')
-    return _track_selector() + ''.join(sections)
+        sections.append(f'<section class="route-section" data-route-track="{track}"><div class="section-heading"><h2>{title}</h2><a href="#{track}" data-select-track="{track}" data-overview-only>选择此路线 →</a></div>{_stage_cards("../../", track)}{detail}</section>')
+    summary = f'<div class="route-summary" aria-live="polite"><strong data-route-published>{len(LESSONS)} 篇已发布</strong><span data-route-concepts>{sum(len(courses) for courses in NAVIGATION.values())} 个计划概念</span></div>'
+    return '<div data-route-page><div class="route-toolbar">' + _track_selector() + summary + '</div>' + ''.join(sections) + '</div>'
 
 
 def _recent():
@@ -206,27 +207,28 @@ def _home_dashboard():
     return f'''<div id="learning-dashboard">
 <section class="continue-section" aria-labelledby="continue-heading">
 <div class="section-heading"><h2 id="continue-heading">继续学习</h2>{_track_selector()}</div>
-<div class="continue-card"><div class="continue-copy">
+<div class="continue-card" data-recommendation-track="main"><div class="continue-copy">
 <div class="continue-meta"><a id="continue-stage" class="eyebrow" href="generated/stages/{stage['id'] if stage else PLAN['stages'][0]['id']}/">{html.escape(stage['title']) if stage else '学习路线'}</a><span id="continue-reason">从第一课开始</span></div>
 <h3 id="continue-title">{html.escape(first['title']) + ('（待发布）' if not first['published'] else '') if first else '教材正在生长'}</h3>
 <p id="continue-story">{html.escape(first['story']) if first else '先看看学习计划，已发布正文会自动出现在这里。'}</p>
 <p id="continue-prerequisites" class="prerequisite-note" hidden></p></div>
 <a class="fable-primary" id="continue-reading" href="{first['url'] if first else 'generated/path/'}">{'开始阅读' if first and first['published'] else '查看待发布课程'} <span aria-hidden="true">→</span></a></div>
-<p id="applied-suggestion" class="subtle" hidden>基础主线已完成，可主动选择<a href="guide/applied/" data-select-track="applied">AI 应用进阶 →</a>。当前路线保持不变。</p>
+<div data-route-only><p id="applied-suggestion" class="subtle" hidden>基础主线已完成，可主动选择<a href="guide/applied/" data-select-track="applied">AI 应用进阶 →</a>。当前路线保持不变。</p></div>
 </section>
-<section class="progress-summary" aria-label="阅读进度">
+<section class="progress-summary" aria-label="阅读进度" data-recommendation-track="main">
 <div class="dashboard-stats"><div><strong id="total-count">{sum(c['published'] for c in NAVIGATION['main'])}</strong><span>本路线已发布</span></div><div><strong id="completed-count">0</strong><span>已完成</span></div><div><strong id="progress-percent">0%</strong><span>阅读进度</span></div></div>
 <div class="progress-summary__track"><progress id="overall-progress" value="0" max="100" aria-label="整体阅读进度"></progress><p id="reading-status" hidden></p></div>
 </section>
-<section aria-labelledby="stages-title"><div class="section-heading"><h2 id="stages-title">AI 基础主线</h2><a href="generated/path/#main" data-select-track="main">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">{MAIN_DESCRIPTION}。</p>{_stage_cards()}</section>
-<section class="route-section" aria-labelledby="applied-title"><div class="section-heading"><h2 id="applied-title">AI 应用进阶</h2><a href="guide/applied/" data-select-track="applied">阅读进阶导读 →</a></div><p class="section-description">应用工作流 → 现代视觉 → 大语言模型与多模态 → Agent 与工程系统。当前为第一期规划。</p>{_stage_cards(track='applied')}</section>
-<aside class="gap-note"><h2>按需参考</h2><p class="subtle">概率与统计资料用于补充概念、查阅公式和评估实验。</p><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">查看参考路线 →</a> · <a href="generated/library/">搜索历史文章 →</a></aside>
-<section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
+<section aria-labelledby="stages-title" data-route-track="main"><div class="section-heading"><h2 id="stages-title">AI 基础主线</h2><a href="generated/path/#main" data-select-track="main">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">{MAIN_DESCRIPTION}。</p>{_stage_cards()}</section>
+<section class="route-section" aria-labelledby="applied-title" data-route-track="applied"><div class="section-heading"><h2 id="applied-title">AI 应用进阶</h2><a href="guide/applied/" data-select-track="applied">阅读进阶导读 →</a></div><p class="section-description">应用工作流 → 现代视觉 → 大语言模型与多模态 → Agent 与工程系统。当前为第一期规划。</p>{_stage_cards(track='applied')}</section>
+<section class="route-section" data-route-track="probability-statistics" data-route-only><div class="section-heading"><h2>概率与统计参考资料</h2><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">完整参考路线 →</a></div><p class="section-description">按需查阅概率、统计与机器学习中的相关概念。</p>{_stage_cards(track='probability-statistics')}</section>
+<aside class="gap-note" data-overview-only><h2>按需参考</h2><p class="subtle">概率与统计资料用于补充概念、查阅公式和评估实验。</p><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">查看参考路线 →</a> · <a href="generated/library/">搜索历史文章 →</a></aside>
+<section class="recent-section" aria-labelledby="recent-title" data-overview-only><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
 </div>'''
 
 
-def _page(title, description, body):
-    return f'---\ntitle: {title}\nhide:\n  - navigation\n  - toc\n---\n<div class="collection-page">\n<p class="eyebrow">AI FABLE NOTES / {title}</p><h1>{title}</h1><p class="collection-intro">{description}</p>\n{body}\n</div>\n'
+def _page(title, description, body, anchors=''):
+    return f'---\ntitle: {title}\nhide:\n  - navigation\n  - toc\n---\n<div class="collection-page">\n{anchors}<p class="eyebrow">AI FABLE NOTES / {title}</p><h1>{title}</h1><p class="collection-intro">{description}</p>\n{body}\n</div>\n'
 
 
 def _library():
@@ -289,8 +291,9 @@ def on_config(config):
     OCR_CHAPTERS = load_chapters(ROOT)
     generated = ROOT / 'docs/generated'
     gap_links = '、'.join(_concept_link(i, 2) for i in sorted(gaps, key=lambda i: known[i]['order'])) or '目前已发布课程的前置正文已齐全。'
-    route = f'<div class="route-summary"><strong>{len(LESSONS)} 篇已发布</strong><span>{len(known)} 个计划概念</span><span>完成状态随阅读同步</span></div>{_route_sections()}<section id="prerequisite-gaps" class="gap-note"><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
-    pages = {'path': _page('学习路线', '基础与应用进阶分别学习，概率与统计按需参考。选择的路线会记在当前浏览器中，阅读其他路线的文章不会自动切换。', route)}
+    route = f'{_route_sections()}<section id="prerequisite-gaps" class="gap-note" data-overview-only><h2>当前前置缺口</h2><p>{gap_links}</p><p class="subtle">这些概念是已发布课程所需的前置知识，等待正文补录。其他未发布概念列为未来计划，不会生成虚构文章链接。</p><a href="../missing/">查看全部待补录概念 →</a></section>'
+    anchors = '<div class="route-anchors" aria-hidden="true">' + ''.join(f'<span id="{view}"></span>' for view in ('overview', *TRACK_TITLES)) + '</div>'
+    pages = {'path': _page('学习路线', '查看全部路线，或选择一条路线逐步学习。', route, anchors)}
     pages['library'] = _page('文章库', '查找概念、重温故事、按需阅读。', _library())
     for name, title in (('domains', '知识领域'), ('chapters', '全部章节'), ('archive', '日期归档')):
         pages[name] = _page(title, '文章浏览已合并到统一文章库，可搜索、筛选阅读状态与领域，并切换排序。', '<a class="fable-primary" href="../library/">前往文章库 →</a>').replace('hide:\n', 'search:\n  exclude: true\nhide:\n', 1)

@@ -83,6 +83,7 @@ body:has(.fable-home) .md-content__inner, body:has(.collection-page) .md-content
 .hero-links { display: flex; flex-wrap: wrap; gap: 1.4rem; margin-top: 1.1rem; font-size: .75rem; font-weight: 600; }
 .track-selector { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin-bottom: 1rem; color: var(--fable-muted); font-size: .75rem; }
 .track-selector[hidden] { display: none; }
+[data-route-track][hidden], [data-route-only][hidden], [data-overview-only][hidden], [data-recommendation-track][hidden] { display: none !important; }
 .track-selector select { max-width: 100%; padding: .45rem .6rem; border: 1px solid var(--fable-border); border-radius: .35rem; background: var(--fable-surface); color: var(--fable-ink); font: inherit; min-height: 2.2rem; }
 .track-selector select:focus-visible { outline: 2px solid var(--fable-green); outline-offset: 2px; }
 .route-section { margin-top: 2rem; }
@@ -139,6 +140,9 @@ progress::-moz-progress-bar { background: var(--fable-green); }
 .md-typeset .collection-intro { color: var(--fable-muted); margin: 0 0 1.5rem; max-width: 40rem; }
 .route-summary { display: flex; flex-wrap: wrap; gap: .5rem 1.3rem; padding-bottom: 1rem; font-size: .75rem; color: var(--fable-muted); }
 .route-summary strong { color: var(--fable-ink); font-weight: 600; }
+.route-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--fable-border); }
+.route-toolbar .track-selector, .route-toolbar .route-summary { margin: 0; padding: 0; }
+.route-anchors span { display: block; scroll-margin-top: 5rem; }
 .gap-note { border-left: 2px solid var(--fable-border); padding: .3rem 1rem; margin-top: 1.8rem; }
 .md-typeset .gap-note h2 { margin: .2rem 0; font-size: 1.05rem; }
 .library-section { margin-top: 1.5rem; }

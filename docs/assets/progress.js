@@ -2,6 +2,8 @@
   "use strict";
   const TRACK_TITLES = { main: "AI 基础主线", applied: "AI 应用进阶", "probability-statistics": "概率与统计参考资料" };
   const validTrack = value => Object.hasOwn(TRACK_TITLES, value) ? value : "main";
+  const validRouteView = value => value === "overview" ? value : validTrack(value);
+  const routeVisible = (view, track) => view === "overview" || view === track;
   function recommendation(navigation, state, selectedTrack = "main") {
     const completed = item => !!state.lessons[item.id]?.completed;
     const all = Object.values(navigation).flat();
@@ -53,35 +55,69 @@
     : state.lessons[course.id] || state.lastRead?.id === course.id ? "reading" : "unread";
   // Exercise production logic without a browser or storage writes.
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { recommendation, clean, mergeProgress, courseReadingState, validTrack };
+    module.exports = { recommendation, clean, mergeProgress, courseReadingState, validTrack, validRouteView, routeVisible };
     return;
   }
   const scriptUrl = document.currentScript.src;
   const siteBase = new URL("../", scriptUrl);
-  let selectedTrack = "main";
+  let selectedView = "main";
   const trackSelectors = [...document.querySelectorAll("[data-track-selector]")];
+  const routePage = document.querySelector("[data-route-page]");
+  function renderRouteView() {
+    document.querySelectorAll("[data-route-track]").forEach(section => {
+      section.hidden = !routeVisible(selectedView, section.dataset.routeTrack)
+        || (selectedView === "overview" && section.hasAttribute("data-route-only"));
+    });
+    document.querySelectorAll("[data-overview-only]").forEach(section => { section.hidden = selectedView !== "overview"; });
+    document.querySelectorAll("[data-route-only]:not([data-route-track])").forEach(section => { section.hidden = selectedView === "overview"; });
+    document.querySelectorAll("[data-recommendation-track]").forEach(section => { section.hidden = selectedView !== section.dataset.recommendationTrack; });
+    const heading = document.getElementById("continue-heading");
+    if (heading) heading.textContent = selectedView === "overview" ? "课程总览" : "继续学习";
+  }
   function syncTrackSelectors() {
     trackSelectors.forEach(select => {
-      select.value = selectedTrack;
+      select.value = selectedView;
       select.closest("label").hidden = false;
     });
+    renderRouteView();
   }
   function chooseTrack(value) {
-    selectedTrack = validTrack(value);
-    try { localStorage.setItem(TRACK_KEY, selectedTrack); }
+    selectedView = validRouteView(value);
+    try { localStorage.setItem(TRACK_KEY, selectedView); }
     catch (_) { notify("路线选择暂时无法保存，刷新后会恢复基础主线。"); }
     syncTrackSelectors();
   }
-  try { selectedTrack = validTrack(localStorage.getItem(TRACK_KEY)); } catch (_) { /* default route */ }
+  try { selectedView = validRouteView(localStorage.getItem(TRACK_KEY)); } catch (_) { /* default route */ }
+  function selectLinkedRoute() {
+    if (!routePage) return;
+    const hash = location.hash.slice(1);
+    const view = hash === "overview" || Object.hasOwn(TRACK_TITLES, hash) ? hash : new URLSearchParams(location.search).get("view");
+    if (view === "overview" || Object.hasOwn(TRACK_TITLES, view)) {
+      chooseTrack(view);
+    }
+  }
+  function updateRouteUrl() {
+    if (!routePage) return;
+    const url = new URL(location.href);
+    url.searchParams.delete("view");
+    url.hash = selectedView;
+    history.replaceState(null, "", url);
+  }
+  selectLinkedRoute();
   syncTrackSelectors();
   trackSelectors.forEach(select => select.addEventListener("change", () => {
     chooseTrack(select.value);
+    updateRouteUrl();
     renderDashboard().catch(catalogUnavailable);
   }));
   document.querySelectorAll("[data-select-track]").forEach(link => link.addEventListener("click", () => {
     chooseTrack(link.dataset.selectTrack);
     renderDashboard().catch(catalogUnavailable);
   }));
+  window.addEventListener("hashchange", () => {
+    selectLinkedRoute();
+    renderDashboard().catch(catalogUnavailable);
+  });
   let state = empty();
   function notify(message) {
     let status = document.getElementById("storage-warning");
@@ -248,6 +284,12 @@
       return;
     }
     const lessons = catalog.lessons;
+    const visibleCourses = selectedView === "overview" ? Object.values(catalog.navigation).flat() : catalog.navigation[selectedView] || [];
+    const routePublished = document.querySelector("[data-route-published]");
+    if (routePublished) {
+      routePublished.textContent = `${visibleCourses.filter(item => item.published).length} 篇已发布`;
+      document.querySelector("[data-route-concepts]").textContent = `${visibleCourses.length} 个计划概念`;
+    }
     document.querySelectorAll("[data-stage-id]").forEach(card => {
       const stageLessons = lessons.filter(item => item.category === card.dataset.stageId);
       if (!stageLessons.length) return;
@@ -257,8 +299,12 @@
       progress.max = stageLessons.length;
       progress.value = done;
     });
-    if (!document.getElementById("learning-dashboard")) return;
-    const courses = catalog.navigation[selectedTrack] || [];
+    if (!document.getElementById("learning-dashboard") || selectedView === "overview") return;
+    document.querySelectorAll("[data-recommendation-track]").forEach(section => {
+      section.dataset.recommendationTrack = selectedView;
+      section.hidden = false;
+    });
+    const courses = catalog.navigation[selectedView] || [];
     const published = courses.filter(item => item.published);
     const completed = published.filter(isCompleted).length;
     const percent = published.length ? Math.round(completed / published.length * 100) : 0;
@@ -269,8 +315,8 @@
     document.getElementById("overall-progress").hidden = !published.length;
     document.getElementById("reading-status").hidden = !!published.length;
     document.getElementById("reading-status").textContent = !published.length ? "正文尚未发布，暂不计算阅读进度。" : "";
-    const { item, kind } = recommendation(catalog.navigation, state, selectedTrack);
-    document.getElementById("applied-suggestion").hidden = !(selectedTrack === "main" && kind === "complete" && courses.length);
+    const { item, kind } = recommendation(catalog.navigation, state, selectedView);
+    document.getElementById("applied-suggestion").hidden = !(selectedView === "main" && kind === "complete" && courses.length);
     const continueLink = document.getElementById("continue-reading");
     if (!item) {
       document.getElementById("continue-title").textContent = "教材正在生长";
@@ -289,7 +335,7 @@
     stageLink.href = new URL(`generated/stages/${item.category}/`, siteBase).href;
     document.getElementById("continue-title").textContent = kind === "blocked" ? "先补齐必要的前置知识" : title + (kind === "pending" ? "（待发布）" : "");
     document.getElementById("continue-story").textContent = kind === "blocked" ? "课程所需的前置知识暂不可用，可在学习路线查看计划。" : kind === "pending" ? "这篇课程正文尚未发布，先在阶段计划查看学习位置与前置知识。" : item.story;
-    continueLink.href = new URL(kind === "blocked" ? "generated/path/#prerequisite-gaps" : item.url, siteBase).href;
+    continueLink.href = new URL(kind === "blocked" ? "generated/path/?view=overview#prerequisite-gaps" : item.url, siteBase).href;
     continueLink.textContent = kind === "resume" ? "继续阅读 →" : kind === "pending" ? "查看待发布课程 →" : kind === "blocked" ? "查看学习路线 →" : kind === "complete" ? "回顾这一篇 →" : completed ? "阅读下一课 →" : "开始阅读 →";
     const prerequisites = document.getElementById("continue-prerequisites");
     prerequisites.hidden = !item.prerequisites.length;
@@ -326,8 +372,9 @@
   window.addEventListener("pageshow", event => {
     if (!event.persisted) return;
     try {
-      selectedTrack = validTrack(localStorage.getItem(TRACK_KEY));
+      selectedView = validRouteView(localStorage.getItem(TRACK_KEY));
       syncTrackSelectors();
+      updateRouteUrl();
       const saved = localStorage.getItem(KEY);
       state = saved ? clean(JSON.parse(saved)) : empty();
       if (id) {
@@ -341,8 +388,9 @@
   });
   window.addEventListener("storage", event => {
     if (event.key === TRACK_KEY || event.key === null) {
-      selectedTrack = validTrack(event.key === null ? null : event.newValue);
+      selectedView = validRouteView(event.key === null ? null : event.newValue);
       syncTrackSelectors();
+      updateRouteUrl();
       renderDashboard().catch(catalogUnavailable);
     }
     if (event.key !== KEY) return;

@@ -80,10 +80,38 @@ class NavigationChecks(unittest.TestCase):
                 self.assertNotIn('data-course-id="' + course['id'] + '"', route)
                 self.assertIn('#concept-' + course['id'], course['url'])
             self.assertIn('规划中 · 正文未发布', route)
-            self.assertNotIn('data-stage-id="statistics"', home)
+            self.assertIn('data-route-track="probability-statistics" data-route-only', home)
             self.assertIn('data-stage-id="applied-workflow"', home)
             self.assertIn('id="applied-suggestion"', home)
             self.assertNotIn('data-stage-progress', site_hook._stage_cards(track='applied'))
+
+    def test_route_views_group_courses_and_offer_overview(self):
+        import site_hook
+        from html.parser import HTMLParser
+
+        class RouteGroups(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.track = None
+                self.groups = {}
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if 'data-route-track' in attrs:
+                    self.track = attrs['data-route-track']
+                    self.groups[self.track] = []
+                if 'data-stage-id' in attrs:
+                    self.groups[self.track].append(attrs['data-stage-id'])
+
+        plan, lessons = load_plan(), load_lessons()
+        with patch.multiple(site_hook, LESSONS=lessons, PLAN=dict(plan, stages=ordered_stages(plan)),
+                            NAVIGATION=course_tracks(plan, lessons)):
+            for source in (site_hook._home_dashboard(), site_hook._route_sections()):
+                parser = RouteGroups()
+                parser.feed(source)
+                self.assertEqual(parser.groups, {track: list(stages) for track, stages in TRACK_STAGES.items()})
+                self.assertIn('<option value="overview">总览</option>', source)
+            self.assertIn('data-route-published', site_hook._route_sections())
 
     def test_applied_publication_updates_catalog_without_placeholder(self):
         import site_hook

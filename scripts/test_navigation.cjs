@@ -2,7 +2,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const { recommendation, clean, mergeProgress, courseReadingState, validTrack } = require("../docs/assets/progress.js");
+const { recommendation, clean, mergeProgress, courseReadingState, validTrack, validRouteView, routeVisible } = require("../docs/assets/progress.js");
 const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const navigation = payload.navigation || payload;
 const state = (ids = [], lastRead = null) => ({
@@ -12,6 +12,18 @@ const state = (ids = [], lastRead = null) => ({
 });
 const trainingEnd = "partial-derivative-and-gradient";
 const throughTraining = navigation.main.slice(0, navigation.main.findIndex(item => item.id === trainingEnd) + 1).map(item => item.id);
+
+test("总览包含三条路线，具体路线只显示自己的课程；旧选择仍然有效", () => {
+  const tracks = Object.keys(navigation);
+  assert.equal(validRouteView("overview"), "overview");
+  assert.equal(validRouteView(null), "main");
+  assert.equal(validRouteView("ocr"), "main");
+  assert.deepEqual(tracks.filter(track => routeVisible("overview", track)), tracks);
+  for (const track of tracks) {
+    assert.equal(validRouteView(track), track);
+    assert.deepEqual(tracks.filter(candidate => routeVisible(track, candidate)), [track]);
+  }
+});
 
 test("训练课程新增后，推荐能由待发布自动转为已发布，不跳 CNN 或统计支线", () => {
   const progress = state(throughTraining, trainingEnd);
