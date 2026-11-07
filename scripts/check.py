@@ -72,7 +72,7 @@ class NavigationChecks(unittest.TestCase):
             visit(concept_id)
         with patch.multiple(site_hook, LESSONS=lessons, PLAN=dict(plan, stages=ordered_stages(plan)), NAVIGATION=tracks):
             route = site_hook._route_sections()
-            home = site_hook._home_dashboard()
+            home = site_hook._home_overview()
             for course in tracks['applied']:
                 self.assertIn('concept-' + course['id'], route)
                 self.assertFalse(course['published'])
@@ -80,9 +80,9 @@ class NavigationChecks(unittest.TestCase):
                 self.assertNotIn('data-course-id="' + course['id'] + '"', route)
                 self.assertIn('#concept-' + course['id'], course['url'])
             self.assertIn('规划中 · 正文未发布', route)
-            self.assertIn('data-route-track="probability-statistics" data-route-only', home)
-            self.assertIn('data-stage-id="applied-workflow"', home)
-            self.assertIn('id="applied-suggestion"', home)
+            self.assertIn('data-overview-card="applied"', home)
+            self.assertIn('18 个概念 · 规划中', home)
+            self.assertIn('id="applied-suggestion"', route)
             self.assertNotIn('data-stage-progress', site_hook._stage_cards(track='applied'))
 
     def test_route_views_group_courses_and_offer_overview(self):
@@ -106,12 +106,46 @@ class NavigationChecks(unittest.TestCase):
         plan, lessons = load_plan(), load_lessons()
         with patch.multiple(site_hook, LESSONS=lessons, PLAN=dict(plan, stages=ordered_stages(plan)),
                             NAVIGATION=course_tracks(plan, lessons)):
-            for source in (site_hook._home_dashboard(), site_hook._route_sections()):
-                parser = RouteGroups()
-                parser.feed(source)
-                self.assertEqual(parser.groups, {track: list(stages) for track, stages in TRACK_STAGES.items()})
-                self.assertIn('<option value="overview">总览</option>', source)
-            self.assertIn('data-route-published', site_hook._route_sections())
+            source = site_hook._route_sections()
+            parser = RouteGroups()
+            parser.feed(source)
+            self.assertEqual(parser.groups, {track: list(stages) for track, stages in TRACK_STAGES.items()})
+            self.assertIn('<option value="overview">总览</option>', source)
+            self.assertIn('data-route-published', source)
+            self.assertEqual(source.count('id="learning-dashboard"'), 1)
+
+    def test_home_is_fixed_overview_and_learning_controls_live_on_route_page(self):
+        import site_hook
+        plan, lessons = load_plan(), load_lessons()
+        tracks = course_tracks(plan, lessons)
+        with patch.multiple(site_hook, LESSONS=lessons, PLAN=dict(plan, stages=ordered_stages(plan)), NAVIGATION=tracks):
+            home, route = site_hook._home_overview(), site_hook._route_sections()
+            self.assertEqual(home.count('data-overview-card='), 3)
+            for track in ('main', 'applied', 'ocr'):
+                self.assertIn(f'data-overview-card="{track}"', home)
+            for marker in ('data-track-selector', 'data-route-track', 'data-stage-id',
+                           'id="learning-dashboard"', 'data-overview-only', '<progress'):
+                self.assertNotIn(marker, home)
+            self.assertIn('generated/path/#main', home)
+            self.assertIn('generated/path/#applied', home)
+            self.assertIn('generated/path/#probability-statistics', home)
+            self.assertIn('generated/library/?sort=recent', home)
+            self.assertEqual(route.count('data-track-selector'), 1)
+            self.assertIn('id="continue-reading" href="../../lessons/', route)
+            self.assertIn('id="completed-count"', route)
+            self.assertIn('id="progress-percent"', route)
+
+    def test_date_independent_lesson_references_resolve_to_published_markdown(self):
+        import site_hook
+        plan, lessons = load_plan(), load_lessons()
+        source = '[训练集](../undated-train-val-test.md) [泛化](../undated-overfitting.md) [未知](../undated-unknown.md)'
+        page = SimpleNamespace(file=SimpleNamespace(src_uri=lessons[0]['file']), meta={})
+        with patch.multiple(site_hook, LESSONS=lessons, PLAN=plan, NAVIGATION=course_tracks(plan, lessons)):
+            rendered = site_hook.on_page_markdown(source, page, {}, [])
+        for concept_id, label in (('train-val-test', '训练集'), ('overfitting', '泛化')):
+            target = next(item for item in lessons if item['id'] == concept_id)
+            self.assertIn(f'[{label}]({Path(target["file"]).name})', rendered)
+        self.assertIn('[未知](../undated-unknown.md)', rendered)
 
     def test_applied_publication_updates_catalog_without_placeholder(self):
         import site_hook

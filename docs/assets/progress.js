@@ -71,8 +71,6 @@
     document.querySelectorAll("[data-overview-only]").forEach(section => { section.hidden = selectedView !== "overview"; });
     document.querySelectorAll("[data-route-only]:not([data-route-track])").forEach(section => { section.hidden = selectedView === "overview"; });
     document.querySelectorAll("[data-recommendation-track]").forEach(section => { section.hidden = selectedView !== section.dataset.recommendationTrack; });
-    const heading = document.getElementById("continue-heading");
-    if (heading) heading.textContent = selectedView === "overview" ? "课程总览" : "继续学习";
   }
   function syncTrackSelectors() {
     trackSelectors.forEach(select => {
@@ -308,7 +306,6 @@
     const published = courses.filter(item => item.published);
     const completed = published.filter(isCompleted).length;
     const percent = published.length ? Math.round(completed / published.length * 100) : 0;
-    document.getElementById("total-count").textContent = published.length;
     document.getElementById("completed-count").textContent = completed;
     document.getElementById("progress-percent").textContent = published.length ? percent + "%" : "待发布";
     document.getElementById("overall-progress").value = percent;

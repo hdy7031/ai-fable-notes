@@ -186,10 +186,10 @@ def _route_sections():
                 if stage['id'] in APPLIED_STAGES:
                     detail += f'<details><summary>{html.escape(stage["title"])} · 概念与前置知识</summary>{_course_rows(stage, depth=2)}</details>'
         elif track == 'probability-statistics':
-            detail = '<p class="subtle">按需查阅；首页不会自动切换到此路线。历史正文仍可在文章库搜索。</p>'
+            detail = '<p class="subtle">按需查阅概率、统计与机器学习中的相关概念。历史正文也可在文章库搜索。</p>'
         sections.append(f'<section class="route-section" data-route-track="{track}"><div class="section-heading"><h2>{title}</h2><a href="#{track}" data-select-track="{track}" data-overview-only>选择此路线 →</a></div>{_stage_cards("../../", track)}{detail}</section>')
     summary = f'<div class="route-summary" aria-live="polite"><strong data-route-published>{len(LESSONS)} 篇已发布</strong><span data-route-concepts>{sum(len(courses) for courses in NAVIGATION.values())} 个计划概念</span></div>'
-    return '<div data-route-page><div class="route-toolbar">' + _track_selector() + summary + '</div>' + ''.join(sections) + '</div>'
+    return '<div data-route-page><div class="route-toolbar">' + _track_selector() + summary + '</div>' + _learning_dashboard() + ''.join(sections) + '</div>'
 
 
 def _recent():
@@ -201,30 +201,43 @@ def _recent():
     return "".join(rows) or '<p class="subtle">暂没有可确认发布日期的文章。已收录的历史正文可在文章库阅读。</p>'
 
 
-def _home_dashboard():
+def _learning_dashboard():
     first = next(iter(NAVIGATION['main']), None)
     stage = next((s for s in PLAN["stages"] if first and s["id"] == first["category"]), None)
-    return f'''<div id="learning-dashboard">
+    return f'''<div id="learning-dashboard" class="route-dashboard" data-route-only>
 <section class="continue-section" aria-labelledby="continue-heading">
-<div class="section-heading"><h2 id="continue-heading">继续学习</h2>{_track_selector()}</div>
+<div class="section-heading"><h2 id="continue-heading">继续学习</h2></div>
 <div class="continue-card" data-recommendation-track="main"><div class="continue-copy">
-<div class="continue-meta"><a id="continue-stage" class="eyebrow" href="generated/stages/{stage['id'] if stage else PLAN['stages'][0]['id']}/">{html.escape(stage['title']) if stage else '学习路线'}</a><span id="continue-reason">从第一课开始</span></div>
+<div class="continue-meta"><a id="continue-stage" class="eyebrow" href="../../generated/stages/{stage['id'] if stage else PLAN['stages'][0]['id']}/">{html.escape(stage['title']) if stage else '学习路线'}</a><span id="continue-reason">从第一课开始</span></div>
 <h3 id="continue-title">{html.escape(first['title']) + ('（待发布）' if not first['published'] else '') if first else '教材正在生长'}</h3>
 <p id="continue-story">{html.escape(first['story']) if first else '先看看学习计划，已发布正文会自动出现在这里。'}</p>
 <p id="continue-prerequisites" class="prerequisite-note" hidden></p></div>
-<a class="fable-primary" id="continue-reading" href="{first['url'] if first else 'generated/path/'}">{'开始阅读' if first and first['published'] else '查看待发布课程'} <span aria-hidden="true">→</span></a></div>
-<div data-route-only><p id="applied-suggestion" class="subtle" hidden>基础主线已完成，可主动选择<a href="guide/applied/" data-select-track="applied">AI 应用进阶 →</a>。当前路线保持不变。</p></div>
+<a class="fable-primary" id="continue-reading" href="../../{first['url'] if first else 'generated/path/'}">{'开始阅读' if first and first['published'] else '查看待发布课程'} <span aria-hidden="true">→</span></a></div>
+<p id="applied-suggestion" class="subtle" hidden>基础主线已完成，可主动选择<a href="#applied" data-select-track="applied">AI 应用进阶 →</a>。</p>
 </section>
 <section class="progress-summary" aria-label="阅读进度" data-recommendation-track="main">
-<div class="dashboard-stats"><div><strong id="total-count">{sum(c['published'] for c in NAVIGATION['main'])}</strong><span>本路线已发布</span></div><div><strong id="completed-count">0</strong><span>已完成</span></div><div><strong id="progress-percent">0%</strong><span>阅读进度</span></div></div>
+<div class="dashboard-stats"><div><strong id="completed-count">0</strong><span>已完成</span></div><div><strong id="progress-percent">0%</strong><span>阅读进度</span></div></div>
 <div class="progress-summary__track"><progress id="overall-progress" value="0" max="100" aria-label="整体阅读进度"></progress><p id="reading-status" hidden></p></div>
 </section>
-<section aria-labelledby="stages-title" data-route-track="main"><div class="section-heading"><h2 id="stages-title">AI 基础主线</h2><a href="generated/path/#main" data-select-track="main">完整学习路线 <span aria-hidden="true">→</span></a></div><p class="section-description">{MAIN_DESCRIPTION}。</p>{_stage_cards()}</section>
-<section class="route-section" aria-labelledby="applied-title" data-route-track="applied"><div class="section-heading"><h2 id="applied-title">AI 应用进阶</h2><a href="guide/applied/" data-select-track="applied">阅读进阶导读 →</a></div><p class="section-description">应用工作流 → 现代视觉 → 大语言模型与多模态 → Agent 与工程系统。当前为第一期规划。</p>{_stage_cards(track='applied')}</section>
-<section class="route-section" data-route-track="probability-statistics" data-route-only><div class="section-heading"><h2>概率与统计参考资料</h2><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">完整参考路线 →</a></div><p class="section-description">按需查阅概率、统计与机器学习中的相关概念。</p>{_stage_cards(track='probability-statistics')}</section>
-<aside class="gap-note" data-overview-only><h2>按需参考</h2><p class="subtle">概率与统计资料用于补充概念、查阅公式和评估实验。</p><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">查看参考路线 →</a> · <a href="generated/library/">搜索历史文章 →</a></aside>
-<section class="recent-section" aria-labelledby="recent-title" data-overview-only><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><p class="section-description">按已确认的发布日期排列；历史正文的未知日期不作推测。</p><div class="recent-list">{_recent()}</div></section>
 </div>'''
+
+
+def _home_overview():
+    main_published = sum(course['published'] for course in NAVIGATION['main'])
+    applied_published = sum(course['published'] for course in NAVIGATION['applied'])
+    applied_status = f'{len(NAVIGATION["applied"])} 个概念 · {applied_published} 篇已发布' if applied_published else f'{len(NAVIGATION["applied"])} 个概念 · 规划中'
+    entries = (
+        ('main', 'AI 基础主线', MAIN_DESCRIPTION + '。', f'{main_published} 篇已发布', 'generated/path/#main', '基础课程'),
+        ('applied', 'AI 应用进阶', '应用工作流、现代视觉、大语言模型与多模态、Agent 与工程系统。', applied_status, 'generated/path/#applied', '进阶路线'),
+        ('ocr', 'OCR 与文档智能', '从图像基础、模型选型到工程交付，沿独立课程目录学习。', '独立课程目录', 'ocr/', '专题课程'),
+    )
+    cards = []
+    for track, title, description, status, url, label in entries:
+        selection = f' data-select-track="{track}"' if track != 'ocr' else ''
+        cards.append(f'<a class="stage-card" data-overview-card="{track}" href="{url}"{selection}><span class="stage-number">{label}<span aria-hidden="true">↗</span></span><h3>{title}</h3><p>{description}</p><span class="stage-status">{status}</span></a>')
+    return f'''<section aria-labelledby="overview-title"><div class="section-heading"><h2 id="overview-title">学习总览</h2><a href="generated/path/">进入学习路线 →</a></div><div class="stage-grid">{''.join(cards)}</div></section>
+<aside class="gap-note"><h2>按需参考</h2><p class="subtle">概率与统计资料用于补充概念、查阅公式和评估实验。</p><a href="generated/path/#probability-statistics" data-select-track="probability-statistics">查看参考路线 →</a> · <a href="generated/library/">搜索历史文章 →</a></aside>
+<section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近更新</h2><a href="generated/library/?sort=recent">浏览文章库 <span aria-hidden="true">→</span></a></div><div class="recent-list">{_recent()}</div></section>'''
 
 
 def _page(title, description, body, anchors=''):
@@ -332,12 +345,17 @@ def on_page_markdown(markdown, page, config, files):
         markdown = _normalize_display_math(_render_original('# ' + chapter['title'] + '\n\n' + markdown))
         return render_chapter(markdown, chapter, ROOT)
     if page.file.src_uri == 'index.md':
-        return markdown.replace('<!-- HOME_DASHBOARD -->', _home_dashboard())
+        return markdown.replace('<!-- HOME_OVERVIEW -->', _home_overview())
     lesson = next((x for x in LESSONS if x['file'] == page.file.src_uri), None)
     if not lesson:
         return markdown
     page.meta['hide'] = ['navigation']
     page.meta['fable_layout'] = 'reading'
+    # Resolve date-independent lesson references without changing source Markdown.
+    for target in LESSONS:
+        reference = f'../undated-{target["id"]}.md'
+        if not (ROOT / 'docs' / reference.removeprefix('../')).exists():
+            markdown = markdown.replace(f']({reference})', f']({Path(target["file"]).name})')
     markdown = render_pasted(markdown) if lesson.get('body_format') == 'plain-text' else _render_original(markdown)
     markdown = _normalize_display_math(markdown)
     if not markdown.lstrip().startswith('# '):
