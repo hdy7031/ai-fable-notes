@@ -262,14 +262,16 @@
       return;
     }
     const published = courses.filter(item => item.published);
+    if (!published.length) return;
     const completed = published.filter(isCompleted).length;
-    document.getElementById("ocr-progress").textContent = `已发布 ${published.length} 章 · 已完成 ${completed} 章 · 进度保存在当前浏览器`;
-    const { item, kind } = recommendation({ main: courses }, state);
-    if (item) {
-      const link = document.getElementById("ocr-continue");
-      link.href = new URL(item.url, siteBase).href;
-      link.textContent = `${kind === "pending" ? "查看待补录或待学习" : kind === "complete" ? "回顾" : "继续学习"}：${item.title} →`;
-    }
+    document.getElementById("ocr-progress").textContent = `已发布 ${published.length} 章 · 已完成 ${completed} 章`;
+    const recent = published.find(item => item.id === state.lastRead?.id);
+    const unfinished = published.find(item => !isCompleted(item));
+    const item = recent && !isCompleted(recent) ? recent : unfinished || recent || published[0];
+    document.getElementById("ocr-current-title").textContent = item.title;
+    const link = document.getElementById("ocr-continue");
+    link.href = new URL(item.url, siteBase).href;
+    link.textContent = `${completed === published.length ? "回顾章节" : recent === item ? "继续阅读" : "开始阅读"} →`;
   }
 
   async function renderDashboard() {

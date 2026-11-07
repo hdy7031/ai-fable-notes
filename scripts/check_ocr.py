@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from content import ROOT, split_markdown
-from ocr_course import course_index, course_track, load_course
+from ocr_course import course_index, course_part, course_track, load_course
 
 
 class OcrChecks(unittest.TestCase):
@@ -65,9 +65,9 @@ class OcrChecks(unittest.TestCase):
             self.assertFalse(track[1]['published'])
             self.assertEqual(track[1]['url'], 'ocr/#ocr-convolution-features')
             index = course_index(root)
-            self.assertIn('data-course-id="ocr-pixels-rgb"', index)
+            self.assertIn('data-course-id="ocr-pixels-rgb"', course_part("ocr-part-1", root))
             self.assertIn('chapters/undated-ocr-pixels-rgb/', index)
-            self.assertIn('**已发布 1 章**', index)
+            self.assertIn('已发布 1 章', index)
             self.assertNotEqual(self.run_import(root, source, manifest).returncode, 0)
             self.assertEqual(target.read_bytes(), original)
             # Exercise the actual MkDocs hook with a published OCR body, not just empty-course builds.
@@ -80,6 +80,11 @@ class OcrChecks(unittest.TestCase):
             page = (root / 'site/ocr/chapters/undated-ocr-pixels-rgb/index.html').read_text(encoding='utf-8')
             self.assertIn('class="arithmatex"', page)
             self.assertIn('aria-label="前后章"', page)
+            part_page = (root / 'site/ocr/parts/ocr-part-1/index.html').read_text(encoding='utf-8')
+            self.assertIn('../../../ocr/chapters/undated-ocr-pixels-rgb/', part_page)
+            self.assertIn('assets/ocr.css', part_page)
+            self.assertIn('<strong>课时规划</strong>', part_page)
+            self.assertNotIn('assets/ocr.css', page)
             self.assertIn('../../../ocr/#ocr-convolution-features', page)
 
 
@@ -117,8 +122,18 @@ class OcrChecks(unittest.TestCase):
         for chapter_id in ('ocr-pixels-rgb', 'ocr-convolution-features', 'ocr-training',
                            'ocr-cnn-structure', 'ocr-dbnet', 'ocr-crnn-ctc',
                            'ocr-paddleocr', 'ocr-document-intelligence'):
-            self.assertIn('{#' + chapter_id + '}', index)
+            self.assertIn('id="' + chapter_id + '"', index)
+            self.assertIn('data-ocr-redirect', index)
         self.assertEqual(course['next_chapter'], 'ocr-dbnet')
+        for part in course['parts']:
+            page = course_part(part['id'])
+            for module in (m for m in course['modules'] if m['part'] == part['id']):
+                self.assertIn('id="' + module['id'] + '"', page)
+                self.assertIn(module['practice'], page)
+                for lesson in module['lessons']:
+                    self.assertIn(lesson, page)
+        self.assertNotIn('开始阅读', index)
+        self.assertNotIn('实践目标', index)
         with tempfile.TemporaryDirectory() as directory:
             import yaml
             root = Path(directory)

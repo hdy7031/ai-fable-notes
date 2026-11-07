@@ -12,7 +12,9 @@ from curriculum import (MAIN_STAGES, APPLIED_STAGES, MAIN_DESCRIPTION, TRACK_STA
                         course_tracks, course_neighbors)
 from pasted_render import render_pasted
 from library_dates import library_dates
-from ocr_course import load_chapters, course_track, course_index, render_chapter
+from mkdocs.structure.files import File
+from ocr_course import (load_course, load_chapters, course_track, course_index,
+                        course_part, course_about, render_chapter)
 
 LESSONS = []
 OCR_CHAPTERS = []
@@ -321,7 +323,9 @@ def on_config(config):
     _write_if_changed(ROOT / 'docs/assets/catalog.json', json.dumps({'version': 1, 'lessons': LESSONS, 'stages': PLAN['stages'], 'navigation': NAVIGATION, 'courses': {'ocr': course_track(ROOT)}}, ensure_ascii=False, indent=2))
     config['nav'] = [
         {'首页': 'index.md'},
-        {'OCR 与文档智能': ['ocr/index.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
+        {'OCR 与文档智能': ['ocr/index.md']
+         + [{p['title']: f'ocr/parts/{p["id"]}.md'} for p in load_course(ROOT)['parts']]
+         + ['ocr/about.md'] + [{x['title']: x['file']} for x in OCR_CHAPTERS]},
         {'学习路线': ['generated/path.md', {'应用进阶导读': 'guide/applied.md'}] + [
             {title: [{s['title']: f'generated/stages/{s["id"]}.md'} for s in PLAN['stages'] if s['id'] in TRACK_STAGES[track]]}
             for track, title in TRACK_TITLES.items()] + [{'待补录清单': 'generated/missing.md'}]},
@@ -335,9 +339,18 @@ def on_pre_build(config):
     on_config(config)
 
 
+def on_files(files, config):
+    for part in load_course(ROOT)['parts']:
+        files.append(File.generated(config, f'ocr/parts/{part["id"]}.md', content=course_part(part['id'], ROOT)))
+    files.append(File.generated(config, 'ocr/about.md', content=course_about(ROOT)))
+    return files
+
+
 def on_page_markdown(markdown, page, config, files):
     if page.file.src_uri == 'ocr/index.md':
-        return course_index(ROOT)
+        page.meta['hide'] = ['navigation', 'toc']
+        page.meta['ocr_layout'] = True
+        return '<div class="ocr-course" markdown="1">\n\n' + course_index(ROOT) + '\n\n</div>'
     chapter = next((x for x in OCR_CHAPTERS if x['file'] == page.file.src_uri), None)
     if chapter:
         page.meta['hide'] = ['navigation']

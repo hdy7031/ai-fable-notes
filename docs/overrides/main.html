@@ -1,4 +1,16 @@
 {% extends "base.html" %}
+{% block styles %}
+  {{ super() }}
+  {% if page and page.meta.ocr_layout %}
+  <link rel="stylesheet" href="{{ 'assets/ocr.css' | url }}">
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  {% if page and page.meta.ocr_layout %}
+  <script src="{{ 'assets/ocr.js' | url }}"></script>
+  {% endif %}
+{% endblock %}
 {% block content %}
   {% if page.meta.fable_layout == "reading" and page.toc %}
   <details class="reading-toc">
